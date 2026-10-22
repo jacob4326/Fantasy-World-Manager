@@ -13,7 +13,15 @@
     <aside class="sidebar">
       <div class="brand"><div class="brand-mark">✧</div><div><div class="brand-name">Myth Docks</div><span class="brand-sub">Port for Worldbuilding</span></div></div>
       <div class="world-label">Current world</div>
-      <div class="world-switch"><div><strong>Untitled World</strong><small>Ready for your first idea</small></div><span class="switch-caret">⌄</span></div>
+      <div class="world-picker">
+        <button class="world-switch" id="world-switch" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="world-menu">
+          <span><strong data-world-name>Untitled World</strong><small>Choose or create a world</small></span><span class="switch-caret">⌄</span>
+        </button>
+        <div class="world-menu" id="world-menu" role="menu" hidden>
+          <div class="world-menu-list" id="world-menu-list"></div>
+          <button class="world-create" id="create-world" type="button" role="menuitem">＋ &nbsp; Create a world</button>
+        </div>
+      </div>
       <div class="nav-label">Workspace</div>
       <nav class="nav" aria-label="Main navigation">
         <button class="active" data-view="overview"><span class="nav-icon">⌂</span>Overview</button>
@@ -23,15 +31,15 @@
         <button data-view="items"><span class="nav-icon">✧</span>Items<span class="nav-count" data-count="items">0</span></button>
         <button data-view="timeline"><span class="nav-icon">◷</span>Timeline<span class="nav-count" data-count="timeline">0</span></button>
       </nav>
-      <div class="side-bottom"><strong>✦ &nbsp; Untitled World</strong>Your blank canvas awaits</div>
+      <div class="side-bottom"><strong>✦ &nbsp; <span data-world-name>Untitled World</span></strong>Your blank canvas awaits</div>
     </aside>
     <!-- Main area contains the page toolbar, overview dashboard, and collection views. -->
     <main class="main">
-      <header class="topbar"><div class="crumb">My worlds &nbsp;/&nbsp; <b>Untitled World</b></div><div class="top-actions"><button class="icon-btn" aria-label="Search" id="focus-search">⌕</button><button class="icon-btn" aria-label="Notifications">♧</button><div class="avatar">✧</div></div></header>
+      <header class="topbar"><div class="crumb">My worlds &nbsp;/&nbsp; <b data-world-name>Untitled World</b></div><div class="top-actions"><button class="icon-btn" aria-label="Search" id="focus-search">⌕</button><button class="icon-btn" aria-label="Notifications">♧</button><div class="avatar">✧</div></div></header>
       <div class="content">
         <!-- Overview gives a new world useful entry points without sample lore. -->
         <section id="overview-view">
-          <div class="welcome"><div><div class="eyebrow">YOUR STORY STARTS HERE</div><h1>A world of your own</h1><p>Build it from the ground up. Add a place, a character, a faction, or a moment in history.</p></div><button class="primary" id="quick-add">＋ &nbsp; Create your first entry</button></div>
+          <div class="welcome"><div><div class="eyebrow">YOUR STORY STARTS HERE</div><h1 data-world-name>Untitled World</h1><p>Build it from the ground up. Add a place, a character, a faction, or a moment in history.</p></div><button class="primary" id="quick-add">＋ &nbsp; Create your first entry</button></div>
           <div class="stats">
             <div class="stat"><div class="stat-top">Places <span class="stat-icon">⌖</span></div><div class="stat-num" data-stat="places">0</div><div class="stat-note">Ready to be discovered</div></div>
             <div class="stat"><div class="stat-top">Characters <span class="stat-icon">♙</span></div><div class="stat-num" data-stat="characters">0</div><div class="stat-note">Waiting to meet them</div></div>

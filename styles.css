@@ -27,10 +27,21 @@
     .brand-name { font: 600 21px var(--serif); letter-spacing: .2px; }
     .brand-sub { display: block; color: var(--muted); font: 10px var(--sans); letter-spacing: 1.8px; text-transform: uppercase; margin-top: 2px; }
     .world-label { color: #788479; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 0 11px 10px; }
-    .world-switch { display: flex; align-items: center; justify-content: space-between; margin: 0 3px 27px; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; }
+    .world-picker { position: relative; margin: 0 3px 27px; }
+    .world-switch { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 12px; text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; }
+    .world-switch:hover, .world-switch[aria-expanded="true"] { border-color: #596451; }
     .world-switch strong { display: block; font-size: 12px; font-weight: 600; }
     .world-switch small { color: var(--muted); display: block; margin-top: 4px; font-size: 11px; }
     .switch-caret { color: var(--muted); }
+    .world-menu { position: absolute; z-index: 8; top: calc(100% + 7px); left: 0; right: 0; padding: 6px; border: 1px solid var(--line); border-radius: 9px; background: #1b231d; box-shadow: 0 12px 28px #0008; }
+    .world-menu-list { display: grid; gap: 3px; max-height: 250px; overflow-y: auto; }
+    .world-option-row { display: flex; align-items: center; gap: 3px; }
+    .world-option, .world-create { width: 100%; display: flex; align-items: center; gap: 9px; padding: 9px 10px; border: 0; border-radius: 6px; background: transparent; color: #cbd3c8; text-align: left; font-size: 11px; }
+    .world-option { flex: 1; }
+    .world-option:hover, .world-option.active, .world-create:hover, .world-rename:hover { background: #293329; color: var(--text); }
+    .world-option.active::after { content: "✓"; margin-left: auto; color: var(--gold); }
+    .world-rename { width: 30px; height: 30px; flex: 0 0 30px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 14px; }
+    .world-create { margin-top: 5px; border-top: 1px solid var(--line); border-radius: 0 0 6px 6px; color: var(--gold); }
     .nav-label { color: #788479; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; padding: 0 11px 9px; text-transform: uppercase; }
     .nav { display: grid; gap: 4px; }
     .nav button { text-align: left; border: 0; background: transparent; border-radius: 7px; padding: 10px 12px; color: #abb5aa; display: flex; gap: 12px; align-items: center; transition: .15s; }
@@ -120,6 +131,8 @@
     .entry-menu summary::-webkit-details-marker { display: none; }
     .entry-menu summary:hover, .entry-menu[open] summary { border-color: var(--line); background: #202820; color: var(--text); }
     .entry-menu-options { position: absolute; top: 32px; right: 0; min-width: 118px; padding: 5px; border: 1px solid var(--line); border-radius: 7px; background: #202820; box-shadow: 0 8px 22px #0007; }
+    .edit-entry { width: 100%; padding: 7px 9px; border: 0; border-radius: 5px; background: transparent; color: #cbd3c8; text-align: left; font-size: 11px; }
+    .edit-entry:hover { background: #303a30; color: var(--text); }
     .remove-entry { width: 100%; padding: 7px 9px; border: 0; border-radius: 5px; background: transparent; color: #e0aaa0; text-align: left; font-size: 11px; }
     .remove-entry:hover { background: #422a27; color: #f0c2b6; }
     .empty { padding: 34px; text-align: center; color: var(--muted); grid-column: 1/-1; }
@@ -151,7 +164,10 @@
     @media (max-width: 680px) {
       .sidebar { position: static; width: auto; height: auto; padding: 14px 15px 10px; border-right: 0; border-bottom: 1px solid var(--line); }
       .brand { padding: 0 4px 12px; }
-      .world-label, .world-switch, .nav-label, .side-bottom { display: none; }
+      .world-label, .nav-label, .side-bottom { display: none; }
+      .world-picker { margin: 0 0 10px; }
+      .world-switch { padding: 8px 10px; }
+      .world-switch strong { font-size: 11px; }
       .nav { display: flex; overflow-x: auto; gap: 5px; }
       .nav button { padding: 8px 10px; white-space: nowrap; font-size: 11px; }
       .nav-icon { display: none; }

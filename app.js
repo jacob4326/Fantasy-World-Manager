@@ -13,28 +13,73 @@ const defaults = {
       items: ["Items","Artifacts, tools, treasures, and objects from your world.","All items","✧","Item"],
       timeline: ["Timeline","The moments that changed the course of history.","All events","◷","Event"]
     };
-    // Read persisted entries while keeping missing or malformed categories empty.
+    // Each world stores its own independent collections.
+    const worldStorageKey = "mythos-worlds";
+    const legacyStorageKey = "mythos-world-data";
+    let worlds = [];
+    let activeWorldId;
     let state;
     try {
-      const saved = localStorage.getItem("mythos-world-data");
-      const savedState = saved ? JSON.parse(saved) : {};
-      state = Object.fromEntries(
-        Object.keys(defaults).map(key => [key, Array.isArray(savedState[key]) ? savedState[key] : []])
-      );
+      const savedWorlds = localStorage.getItem(worldStorageKey);
+      if (savedWorlds) {
+        const parsedWorlds = JSON.parse(savedWorlds);
+        if (!Array.isArray(parsedWorlds.worlds) || typeof parsedWorlds.activeWorldId !== "string") {
+          throw new Error("Saved world list has an invalid format.");
+        }
+        worlds = parsedWorlds.worlds
+          .filter(world => world && typeof world.id === "string" && typeof world.name === "string")
+          .map(world => ({ id: world.id, name: world.name, data: normalizeData(world.data) }));
+        activeWorldId = parsedWorlds.activeWorldId;
+      } else {
+        // Move existing single-world saves into the new multi-world format.
+        const legacySave = localStorage.getItem(legacyStorageKey);
+        const legacyData = legacySave ? JSON.parse(legacySave) : defaults;
+        const firstWorld = { id: createWorldId(), name: "Untitled World", data: normalizeData(legacyData) };
+        worlds = [firstWorld];
+        activeWorldId = firstWorld.id;
+      }
+      if (!worlds.some(world => world.id === activeWorldId)) {
+        activeWorldId = worlds[0]?.id;
+      }
+      if (!worlds.length) {
+        const firstWorld = { id: createWorldId(), name: "Untitled World", data: normalizeData(defaults) };
+        worlds = [firstWorld];
+        activeWorldId = firstWorld.id;
+      }
+      state = worlds.find(world => world.id === activeWorldId).data;
     } catch (error) {
-      console.error("Unable to load saved world data.", error);
-      state = { ...defaults };
-      showToast("Saved data couldn't be loaded; starting with an empty world.");
+      console.error("Unable to load saved worlds.", error);
+      const firstWorld = { id: createWorldId(), name: "Untitled World", data: normalizeData(defaults) };
+      worlds = [firstWorld];
+      activeWorldId = firstWorld.id;
+      state = firstWorld.data;
+      showToast("Saved worlds couldn't be loaded; starting with a new world.");
     }
     // Track which workspace section is currently shown.
     let activeView = "overview";
 
-    // Save world data locally so it remains available after a reload.
+    // Normalize stored collections so older saves safely gain newer categories.
+    function normalizeData(data) {
+      const source = data && typeof data === "object" ? data : {};
+      return Object.fromEntries(
+        Object.keys(defaults).map(key => [key, Array.isArray(source[key]) ? source[key] : []])
+      );
+    }
+
+    function createWorldId() {
+      return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+
+    // Save every world and the current selection in browser storage.
     function persist() {
       try {
-        localStorage.setItem("mythos-world-data", JSON.stringify(state));
+        const currentWorld = worlds.find(world => world.id === activeWorldId);
+        if (currentWorld) currentWorld.data = state;
+        localStorage.setItem(worldStorageKey, JSON.stringify({ worlds, activeWorldId }));
       } catch (error) {
-        console.error("Unable to save world data.", error);
+        console.error("Unable to save worlds.", error);
         showToast("Couldn't save changes in this browser.");
       }
     }
@@ -55,6 +100,127 @@ const defaults = {
         const stat = document.querySelector(`[data-stat="${key}"]`);
         if (stat) stat.textContent = state[key].length;
       });
+    }
+
+    // Keep all visible world-name labels and the world picker in sync.
+    function renderWorlds() {
+      const currentWorld = worlds.find(world => world.id === activeWorldId);
+      if (!currentWorld) return;
+      document.querySelectorAll("[data-world-name]").forEach(element => {
+        element.textContent = currentWorld.name;
+      });
+      const list = document.getElementById("world-menu-list");
+      list.innerHTML = "";
+      worlds.forEach(world => {
+        const row = document.createElement("div");
+        row.className = "world-option-row";
+        const option = document.createElement("button");
+        option.className = `world-option${world.id === activeWorldId ? " active" : ""}`;
+        option.type = "button";
+        option.setAttribute("role", "menuitemradio");
+        option.textContent = world.name;
+        option.setAttribute("aria-checked", String(world.id === activeWorldId));
+        option.addEventListener("click", () => switchWorld(world.id));
+        const renameButton = document.createElement("button");
+        renameButton.className = "world-rename";
+        renameButton.type = "button";
+        renameButton.textContent = "✎";
+        renameButton.setAttribute("aria-label", `Rename ${world.name}`);
+        renameButton.setAttribute("role", "menuitem");
+        renameButton.addEventListener("click", () => {
+          closeWorldMenu();
+          openRenameWorldModal(world.id);
+        });
+        row.append(option, renameButton);
+        list.append(row);
+      });
+    }
+
+    // Switch collections without changing the user's selected workspace section.
+    function switchWorld(worldId) {
+      const selectedWorld = worlds.find(world => world.id === worldId);
+      if (!selectedWorld) return;
+      activeWorldId = selectedWorld.id;
+      state = selectedWorld.data;
+      persist();
+      renderWorlds();
+      updateCounts();
+      closeWorldMenu();
+      if (activeView !== "overview") {
+        document.getElementById("search-input").value = "";
+        renderCollection();
+      }
+    }
+
+    function closeWorldMenu() {
+      const switchButton = document.getElementById("world-switch");
+      document.getElementById("world-menu").hidden = true;
+      switchButton.setAttribute("aria-expanded", "false");
+    }
+
+    // Prompt for a name and create a separate, empty world.
+    function openCreateWorldModal() {
+      const root = document.getElementById("modal-root");
+      root.innerHTML = `<div class="modal-backdrop"><form class="modal" id="world-form"><div class="modal-head"><h2>Create a world</h2><button class="close" type="button" aria-label="Close">×</button></div><label class="field">World name<input name="name" maxlength="60" required placeholder="Name your world"></label><div class="modal-actions"><button class="secondary" type="button" id="cancel-world">Cancel</button><button class="primary" type="submit">Create world</button></div></form></div>`;
+      root.querySelector(".close").addEventListener("click", closeModal);
+      root.querySelector("#cancel-world").addEventListener("click", closeModal);
+      const nameInput = root.querySelector('input[name="name"]');
+      nameInput.addEventListener("input", () => nameInput.setCustomValidity(""));
+      root.querySelector(".modal-backdrop").addEventListener("click", event => {
+        if (event.target.classList.contains("modal-backdrop")) closeModal();
+      });
+      root.querySelector("#world-form").addEventListener("submit", event => {
+        event.preventDefault();
+        const name = new FormData(event.currentTarget).get("name").trim();
+        if (!name) {
+          nameInput.setCustomValidity("Enter a name for this world.");
+          nameInput.reportValidity();
+          return;
+        }
+        const newWorld = { id: createWorldId(), name, data: normalizeData(defaults) };
+        worlds.push(newWorld);
+        activeWorldId = newWorld.id;
+        state = newWorld.data;
+        persist();
+        renderWorlds();
+        updateCounts();
+        closeModal();
+        openView("overview");
+        showToast(`World "${name}" created.`);
+      });
+      root.querySelector('input[name="name"]').focus();
+    }
+
+    // Rename the selected world without changing its saved collections.
+    function openRenameWorldModal(worldId) {
+      const world = worlds.find(item => item.id === worldId);
+      if (!world) return;
+      const root = document.getElementById("modal-root");
+      root.innerHTML = `<div class="modal-backdrop"><form class="modal" id="rename-world-form"><div class="modal-head"><h2>Rename world</h2><button class="close" type="button" aria-label="Close">×</button></div><label class="field">World name<input name="name" maxlength="60" required></label><div class="modal-actions"><button class="secondary" type="button" id="cancel-world-rename">Cancel</button><button class="primary" type="submit">Save name</button></div></form></div>`;
+      const nameInput = root.querySelector('input[name="name"]');
+      nameInput.value = world.name;
+      nameInput.addEventListener("input", () => nameInput.setCustomValidity(""));
+      root.querySelector(".close").addEventListener("click", closeModal);
+      root.querySelector("#cancel-world-rename").addEventListener("click", closeModal);
+      root.querySelector(".modal-backdrop").addEventListener("click", event => {
+        if (event.target.classList.contains("modal-backdrop")) closeModal();
+      });
+      root.querySelector("#rename-world-form").addEventListener("submit", event => {
+        event.preventDefault();
+        const name = nameInput.value.trim();
+        if (!name) {
+          nameInput.setCustomValidity("Enter a name for this world.");
+          nameInput.reportValidity();
+          return;
+        }
+        world.name = name;
+        persist();
+        renderWorlds();
+        closeModal();
+        showToast(`World renamed to "${name}".`);
+      });
+      nameInput.focus();
+      nameInput.select();
     }
     // Switch between the overview and a searchable category collection.
     function openView(view) {
@@ -111,6 +277,14 @@ const defaults = {
         menuButton.setAttribute("aria-label", `More options for ${entry[0]}`);
         const menuOptions = document.createElement("div");
         menuOptions.className = "entry-menu-options";
+        const editButton = document.createElement("button");
+        editButton.className = "edit-entry";
+        editButton.type = "button";
+        editButton.textContent = "Edit";
+        editButton.addEventListener("click", () => {
+          menu.open = false;
+          openEditEntry(activeView, entryIndex);
+        });
         const removeButton = document.createElement("button");
         removeButton.className = "remove-entry";
         removeButton.type = "button";
@@ -119,7 +293,7 @@ const defaults = {
           menu.open = false;
           openDeleteConfirmation(activeView, entryIndex);
         });
-        menuOptions.append(removeButton);
+        menuOptions.append(editButton, removeButton);
         menu.append(menuButton, menuOptions);
         card.append(menu);
         target.append(card);
@@ -148,6 +322,40 @@ const defaults = {
         showToast(`${type[0].toUpperCase()}${type.slice(1)} removed.`);
       });
       root.querySelector("#cancel-delete").focus();
+    }
+
+    // Edit an entry's name, description, and category-specific detail.
+    function openEditEntry(category, entryIndex) {
+      const entry = state[category][entryIndex];
+      if (!entry) return;
+      const type = meta[category][4];
+      const root = document.getElementById("modal-root");
+      root.innerHTML = `<div class="modal-backdrop"><form class="modal" id="edit-entry-form"><div class="modal-head"><h2>Edit ${type.toLowerCase()}</h2><button class="close" type="button" aria-label="Close">×</button></div>
+        <label class="field">Name<input name="name" maxlength="60" required></label>
+        <label class="field">Description<textarea name="description" maxlength="240" required></textarea></label>
+        <label class="field">${category === "timeline" ? "Date · Era" : "Type · Region"}<input name="detail" maxlength="60"></label>
+        <div class="modal-actions"><button class="secondary" type="button" id="cancel-edit">Cancel</button><button class="primary" type="submit">Save changes</button></div></form></div>`;
+      const form = root.querySelector("#edit-entry-form");
+      form.elements.name.value = entry[0];
+      form.elements.description.value = entry[2];
+      form.elements.detail.value = entry[3];
+      root.querySelector(".close").addEventListener("click", closeModal);
+      root.querySelector("#cancel-edit").addEventListener("click", closeModal);
+      root.querySelector(".modal-backdrop").addEventListener("click", event => {
+        if (event.target.classList.contains("modal-backdrop")) closeModal();
+      });
+      form.addEventListener("submit", event => {
+        event.preventDefault();
+        entry[0] = form.elements.name.value.trim();
+        entry[2] = form.elements.description.value.trim();
+        entry[3] = form.elements.detail.value.trim() || type;
+        persist();
+        closeModal();
+        renderCollection();
+        showToast(`${type} updated.`);
+      });
+      form.elements.name.focus();
+      form.elements.name.select();
     }
     // Collect a new entry using fields appropriate to the selected category.
     function openModal(requestedCategory) {
@@ -187,11 +395,30 @@ const defaults = {
     document.querySelectorAll("[data-create-category]").forEach(button => {
       button.addEventListener("click", () => openModal(button.dataset.createCategory));
     });
+    document.getElementById("world-switch").addEventListener("click", () => {
+      const menu = document.getElementById("world-menu");
+      const isOpening = menu.hidden;
+      menu.hidden = !isOpening;
+      document.getElementById("world-switch").setAttribute("aria-expanded", String(isOpening));
+    });
+    document.getElementById("create-world").addEventListener("click", () => {
+      closeWorldMenu();
+      openCreateWorldModal();
+    });
     document.getElementById("search-input").addEventListener("input", renderCollection);
     document.getElementById("focus-search").addEventListener("click", () => {
       if (activeView === "overview") openView("places");
       document.getElementById("search-input").focus();
     });
-    document.addEventListener("keydown", event => { if (event.key === "Escape") closeModal(); });
+    document.addEventListener("click", event => {
+      if (!event.target.closest(".world-picker")) closeWorldMenu();
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        closeModal();
+        closeWorldMenu();
+      }
+    });
     // Set the initial counts from the loaded local world.
+    renderWorlds();
     updateCounts();
