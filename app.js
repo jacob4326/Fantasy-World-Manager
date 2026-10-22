@@ -3,12 +3,14 @@ const defaults = {
       places: [],
       characters: [],
       factions: [],
+      items: [],
       timeline: []
     };
     const meta = {
       places: ["Places","Landmarks, regions, and hidden corners of your world.","All places","⌖","Place"],
       characters: ["Characters","Heroes, rivals, and everyone caught in between.","All characters","♙","Character"],
       factions: ["Factions","Orders, kingdoms, and powers shaping the realms.","All factions","⚑","Faction"],
+      items: ["Items","Artifacts, tools, treasures, and objects from your world.","All items","✧","Item"],
       timeline: ["Timeline","The moments that changed the course of history.","All events","◷","Event"]
     };
     // Read persisted entries while keeping missing or malformed categories empty.
@@ -163,7 +165,7 @@ const defaults = {
       root.querySelector("#entry-form").addEventListener("submit", event => {
         event.preventDefault();
         const form = new FormData(event.currentTarget);
-        const icons = { places: "✦", characters: "♙", factions: "⚑", timeline: "◷" };
+        const icons = { places: "✦", characters: "♙", factions: "⚑", items: "✧", timeline: "◷" };
         state[category].unshift([form.get("name").trim(), icons[category], form.get("description").trim(), form.get("detail").trim() || meta[category][4]]);
         persist();
         updateCounts();
