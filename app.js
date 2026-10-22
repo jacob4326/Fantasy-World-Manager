@@ -62,7 +62,19 @@ const defaults = {
     function normalizeData(data) {
       const source = data && typeof data === "object" ? data : {};
       return Object.fromEntries(
-        Object.keys(defaults).map(key => [key, Array.isArray(source[key]) ? source[key] : []])
+        Object.keys(defaults).map(key => [
+          key,
+          Array.isArray(source[key])
+            ? source[key].filter(Array.isArray).map(entry => [
+              entry[0] || "",
+              entry[1] || meta[key][3],
+              entry[2] || "",
+              entry[3] || meta[key][4],
+              typeof entry[4] === "string" ? entry[4] : entry[2] || "",
+              Array.isArray(entry[5]) ? entry[5].filter(image => typeof image === "string" && image.startsWith("data:image/")) : []
+            ])
+            : []
+        ])
       );
     }
 
@@ -78,9 +90,11 @@ const defaults = {
         const currentWorld = worlds.find(world => world.id === activeWorldId);
         if (currentWorld) currentWorld.data = state;
         localStorage.setItem(worldStorageKey, JSON.stringify({ worlds, activeWorldId }));
+        return true;
       } catch (error) {
         console.error("Unable to save worlds.", error);
         showToast("Couldn't save changes in this browser.");
+        return false;
       }
     }
     // Give the user short-lived feedback after important actions or storage errors.
@@ -147,6 +161,8 @@ const defaults = {
       updateCounts();
       closeWorldMenu();
       if (activeView !== "overview") {
+        document.getElementById("entry-detail-view").hidden = true;
+        document.getElementById("collection-view").hidden = false;
         document.getElementById("search-input").value = "";
         renderCollection();
       }
@@ -229,6 +245,7 @@ const defaults = {
       const isOverview = view === "overview";
       document.getElementById("overview-view").hidden = !isOverview;
       document.getElementById("collection-view").hidden = isOverview;
+      document.getElementById("entry-detail-view").hidden = true;
       if (isOverview) return;
       const details = meta[view];
       document.getElementById("collection-eyebrow").textContent = "WORLD INDEX · " + view.toUpperCase();
@@ -259,6 +276,10 @@ const defaults = {
       filtered.forEach(({ entry, index: entryIndex }) => {
         const card = document.createElement("article");
         card.className = "panel entry-card";
+        const openButton = document.createElement("button");
+        openButton.className = "entry-open";
+        openButton.type = "button";
+        openButton.setAttribute("aria-label", `Open ${meta[activeView][4].toLowerCase()} ${entry[0]}`);
         const icon = document.createElement("div");
         icon.className = "entry-symbol";
         icon.textContent = entry[1];
@@ -269,7 +290,9 @@ const defaults = {
         const detail = document.createElement("div");
         detail.className = "entry-meta";
         detail.textContent = entry[3];
-        card.append(icon, title, description, detail);
+        openButton.append(icon, title, description, detail);
+        openButton.addEventListener("click", () => openEntryDetails(activeView, entryIndex));
+        card.append(openButton);
         const menu = document.createElement("details");
         menu.className = "entry-menu";
         const menuButton = document.createElement("summary");
@@ -298,6 +321,137 @@ const defaults = {
         card.append(menu);
         target.append(card);
       });
+    }
+
+    // Show a dedicated page for one place, character, faction, item, or event.
+    function openEntryDetails(category, entryIndex) {
+      const entry = state[category][entryIndex];
+      if (!entry) return;
+      document.getElementById("overview-view").hidden = true;
+      document.getElementById("collection-view").hidden = true;
+      document.getElementById("entry-detail-view").hidden = false;
+      document.getElementById("detail-back-label").textContent = meta[category][0];
+      document.getElementById("detail-icon").textContent = entry[1];
+      document.getElementById("detail-category").textContent = category === "timeline" ? "TIMELINE EVENT" : meta[category][4].toUpperCase();
+      document.getElementById("detail-title").textContent = entry[0];
+      document.getElementById("detail-meta").textContent = entry[3];
+      document.getElementById("long-description").value = entry[4] || entry[2];
+      renderEntryImages(entry);
+      document.getElementById("edit-detail-entry").onclick = () => openEditEntry(category, entryIndex);
+      document.getElementById("save-long-description").onclick = () => {
+        const previousDescription = entry[4];
+        entry[4] = document.getElementById("long-description").value.trim();
+        if (!persist()) {
+          entry[4] = previousDescription;
+          document.getElementById("long-description").value = previousDescription || entry[2];
+          return;
+        }
+        showToast("Description saved.");
+      };
+      document.getElementById("image-upload").onchange = event => addEntryImages(entry, event.target.files);
+    }
+
+    // Render saved images with per-image removal controls.
+    function renderEntryImages(entry) {
+      const gallery = document.getElementById("image-gallery");
+      gallery.innerHTML = "";
+      const images = entry[5] || [];
+      if (!images.length) {
+        const empty = document.createElement("p");
+        empty.className = "gallery-empty";
+        empty.textContent = "No images yet. Add images to build a visual reference for this entry.";
+        gallery.append(empty);
+        return;
+      }
+      images.forEach((src, index) => {
+        const figure = document.createElement("figure");
+        figure.className = "image-card";
+        const image = document.createElement("img");
+        image.src = src;
+        image.alt = `Reference image ${index + 1} for ${entry[0]}`;
+        const removeButton = document.createElement("button");
+        removeButton.className = "remove-image";
+        removeButton.type = "button";
+        removeButton.textContent = "Remove image";
+        removeButton.addEventListener("click", () => {
+          const previousImages = entry[5];
+          entry[5] = previousImages.filter((_, imageIndex) => imageIndex !== index);
+          if (!persist()) {
+            entry[5] = previousImages;
+            return;
+          }
+          renderEntryImages(entry);
+          showToast("Image removed.");
+        });
+        figure.append(image, removeButton);
+        gallery.append(figure);
+      });
+    }
+
+    // Compress selected image files before saving them with the entry locally.
+    function optimizeImage(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error(`Couldn't read ${file.name}.`));
+        reader.onload = () => {
+          const image = new Image();
+          image.onerror = () => reject(new Error(`${file.name} isn't a supported image.`));
+          image.onload = () => {
+            const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+            canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+            const context = canvas.getContext("2d");
+            if (!context) {
+              reject(new Error("This browser couldn't prepare the image."));
+              return;
+            }
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/jpeg", 0.82));
+          };
+          image.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function addEntryImages(entry, files) {
+      const selectedFiles = Array.from(files || []);
+      const imageInput = document.getElementById("image-upload");
+      imageInput.value = "";
+      if (!selectedFiles.length) return;
+      const currentImages = entry[5] || [];
+      const remainingSlots = 8 - currentImages.length;
+      if (remainingSlots <= 0) {
+        showToast("This entry already has the maximum of 8 images.");
+        return;
+      }
+      const filesToAdd = selectedFiles.slice(0, remainingSlots);
+      if (filesToAdd.length < selectedFiles.length) {
+        showToast("Only 8 images can be saved per entry; extra files were skipped.");
+      }
+      try {
+        const images = [];
+        for (const file of filesToAdd) {
+          if (!file.type.startsWith("image/")) {
+            throw new Error(`${file.name} is not an image.`);
+          }
+          if (file.size > 15 * 1024 * 1024) {
+            throw new Error(`${file.name} is larger than the 15 MB upload limit.`);
+          }
+          images.push(await optimizeImage(file));
+        }
+        entry[5] = [...currentImages, ...images];
+        if (!persist()) {
+          entry[5] = currentImages;
+          return;
+        }
+        renderEntryImages(entry);
+        showToast(`${images.length} image${images.length === 1 ? "" : "s"} added.`);
+      } catch (error) {
+        console.error("Unable to add entry images.", error);
+        showToast(error.message || "Couldn't add the selected images.");
+      }
     }
     // Confirm destructive changes before removing an entry from its category.
     function openDeleteConfirmation(category, entryIndex) {
@@ -351,7 +505,11 @@ const defaults = {
         entry[3] = form.elements.detail.value.trim() || type;
         persist();
         closeModal();
-        renderCollection();
+        if (!document.getElementById("entry-detail-view").hidden) {
+          openEntryDetails(category, entryIndex);
+        } else {
+          renderCollection();
+        }
         showToast(`${type} updated.`);
       });
       form.elements.name.focus();
@@ -374,7 +532,15 @@ const defaults = {
         event.preventDefault();
         const form = new FormData(event.currentTarget);
         const icons = { places: "✦", characters: "♙", factions: "⚑", items: "✧", timeline: "◷" };
-        state[category].unshift([form.get("name").trim(), icons[category], form.get("description").trim(), form.get("detail").trim() || meta[category][4]]);
+        const summary = form.get("description").trim();
+        state[category].unshift([
+          form.get("name").trim(),
+          icons[category],
+          summary,
+          form.get("detail").trim() || meta[category][4],
+          summary,
+          []
+        ]);
         persist();
         updateCounts();
         closeModal();
@@ -406,6 +572,7 @@ const defaults = {
       openCreateWorldModal();
     });
     document.getElementById("search-input").addEventListener("input", renderCollection);
+    document.getElementById("back-to-collection").addEventListener("click", () => openView(activeView));
     document.getElementById("focus-search").addEventListener("click", () => {
       if (activeView === "overview") openView("places");
       document.getElementById("search-input").focus();

@@ -73,6 +73,30 @@
           <div class="list-toolbar"><h2 id="list-heading">All places</h2><label class="search"><span>⌕</span><input id="search-input" type="search" placeholder="Search your world..." aria-label="Search entries"></label></div>
           <div class="collection" id="collection"></div>
         </section>
+        <!-- Detail pages show the full notes and image gallery for an entry. -->
+        <section id="entry-detail-view" hidden>
+          <button class="text-button detail-back" id="back-to-collection">← Back to <span id="detail-back-label">Places</span></button>
+          <article class="detail-panel panel">
+            <div class="detail-heading">
+              <div class="detail-identity">
+                <div class="detail-icon" id="detail-icon"></div>
+                <div><div class="eyebrow" id="detail-category"></div><h1 id="detail-title"></h1><div class="entry-meta" id="detail-meta"></div></div>
+              </div>
+              <button class="secondary" id="edit-detail-entry">Edit entry</button>
+            </div>
+            <section class="detail-section">
+              <div class="detail-section-heading"><div><h2>Description</h2><p>Expand on this part of your world.</p></div><button class="secondary" id="save-long-description">Save description</button></div>
+              <label class="sr-only" for="long-description">Detailed description</label>
+              <textarea class="long-description" id="long-description" maxlength="10000" placeholder="Add as much detail as you like..."></textarea>
+            </section>
+            <section class="detail-section">
+              <div class="detail-section-heading"><div><h2>Images</h2><p>Add visual references and inspiration.</p></div>
+                <label class="secondary image-upload">＋ Add images<input id="image-upload" type="file" accept="image/*" multiple></label>
+              </div>
+              <div class="image-gallery" id="image-gallery"></div>
+            </section>
+          </article>
+        </section>
       </div>
     </main>
   </div>
