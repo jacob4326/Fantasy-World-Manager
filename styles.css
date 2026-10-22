@@ -1,3 +1,4 @@
+/* Shared color and typography tokens for the dark fantasy theme. */
 :root {
       color-scheme: dark;
       --bg: #111713;
@@ -16,6 +17,7 @@
     button, input, textarea, select { font: inherit; }
     button { color: inherit; cursor: pointer; }
     .app { min-height: 100vh; }
+    /* Fixed navigation rail and the main application shell. */
     .sidebar {
       position: fixed; inset: 0 auto 0 0; z-index: 5; width: 244px; padding: 27px 16px;
       background: #141a15; border-right: 1px solid var(--line); display: flex; flex-direction: column;
@@ -54,6 +56,7 @@
     .primary:hover { background: #d7b779; }
     .secondary { border: 1px solid var(--line); background: var(--panel); border-radius: 7px; padding: 9px 12px; color: #cad2c7; font-size: 12px; }
     .secondary:hover { border-color: #596451; }
+    /* Overview dashboard metrics and content panels. */
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 13px; margin-bottom: 21px; }
     .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 16px 18px; }
     .stat-top { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 11px; }
@@ -69,21 +72,15 @@
     .map-wrap { padding: 12px; }
     .map {
       height: 276px; border-radius: 7px; overflow: hidden; position: relative; isolation: isolate;
-      background-color: #26352d;
-      background-image:
-        radial-gradient(ellipse at 17% 17%, #59684a 0 8%, transparent 8.5%),
-        radial-gradient(ellipse at 22% 26%, #65724d 0 10%, transparent 10.5%),
-        radial-gradient(ellipse at 72% 25%, #566546 0 13%, transparent 13.5%),
-        radial-gradient(ellipse at 78% 34%, #68714b 0 8%, transparent 8.5%),
-        radial-gradient(ellipse at 42% 80%, #526344 0 12%, transparent 12.5%),
-        radial-gradient(ellipse at 50% 48%, #354a3e 0 22%, transparent 22.5%),
-        linear-gradient(151deg, transparent 0 39%, #a5a174 39.4% 40%, transparent 40.4%),
-        linear-gradient(30deg, transparent 0 54%, #798c73 54.4% 54.9%, transparent 55.3%),
-        radial-gradient(ellipse at 50% 52%, #3f5948, #1f3029 80%);
+      background-color: #1c2924;
+      background-image: radial-gradient(ellipse at center, #26372f, #19241f 78%);
       border: 1px solid #344439;
     }
-    .map:before { content: ""; position: absolute; inset: 0; opacity: .17; z-index: -1; background-image: repeating-radial-gradient(ellipse at 52% 44%, transparent 0 18px, #c9c19a 19px 20px, transparent 21px 34px); }
-    .map:after { content: "THE WESTERN REACH"; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-12deg); color: #e0d5a8; opacity: .55; font: italic 14px var(--serif); letter-spacing: 2px; white-space: nowrap; }
+    .map:before { content: ""; position: absolute; inset: 0; opacity: .13; z-index: -1; background-image: repeating-radial-gradient(ellipse at 52% 44%, transparent 0 18px, #a7b39b 19px 20px, transparent 21px 34px); }
+    .map-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; text-align: center; }
+    .map-empty span { color: var(--gold); font-size: 24px; }
+    .map-empty strong { color: #d9e0d6; font: 500 15px var(--serif); }
+    .map-empty small { color: var(--muted); font-size: 11px; }
     .map-label { position: absolute; z-index: 1; color: #e0e3c7; font: 11px var(--serif); text-shadow: 0 1px 3px #162018; }
     .pin { position: absolute; z-index: 2; width: 10px; height: 10px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: #dfb66e; border: 1px solid #fff1ca; box-shadow: 0 0 0 4px #d3ad6930; }
     .map-legend { display: flex; gap: 17px; padding: 12px 4px 1px; color: var(--muted); font-size: 10px; }
@@ -97,6 +94,8 @@
     .activity-copy { font-size: 11px; line-height: 1.5; color: #c9d0c5; }
     .activity-copy strong { color: #edf0e7; font-weight: 600; }
     .activity-copy small { display: block; color: #849083; font-size: 10px; margin-top: 3px; }
+    .activity-empty { padding: 27px 3px; color: var(--muted); font-size: 11px; line-height: 1.6; text-align: center; }
+    /* Blank-map illustration and the empty-state dashboard panels. */
     .lower-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 17px; margin-top: 17px; }
     .featured { padding: 15px 18px; display: flex; gap: 13px; align-items: center; }
     .feature-art { width: 50px; height: 50px; flex: 0 0 50px; display: grid; place-items: center; border-radius: 9px; background: linear-gradient(145deg,#394b39,#26352b); font-size: 23px; }
@@ -109,16 +108,26 @@
     .search input { width: 210px; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 9px 12px 9px 32px; outline: none; font-size: 11px; }
     .search input:focus { border-color: #85754f; }
     .search span { position: absolute; left: 11px; top: 7px; color: var(--muted); }
+    /* Search results, entry cards, and their per-entry overflow menus. */
     .collection { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 13px; }
-    .entry-card { padding: 16px; }
+    .entry-card { position: relative; overflow: visible; padding: 16px; }
     .entry-card .entry-symbol { font-size: 20px; margin-bottom: 12px; }
     .entry-card h3 { font: 600 16px var(--serif); margin: 0; }
     .entry-card p { font-size: 11px; line-height: 1.6; color: var(--muted); margin: 8px 0 12px; }
     .entry-meta { color: #b7c2b4; font-size: 10px; }
+    .entry-menu { position: absolute; z-index: 3; top: 9px; right: 10px; }
+    .entry-menu summary { width: 30px; height: 28px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 6px; color: #aeb8ac; font-size: 19px; line-height: 1; list-style: none; cursor: pointer; }
+    .entry-menu summary::-webkit-details-marker { display: none; }
+    .entry-menu summary:hover, .entry-menu[open] summary { border-color: var(--line); background: #202820; color: var(--text); }
+    .entry-menu-options { position: absolute; top: 32px; right: 0; min-width: 118px; padding: 5px; border: 1px solid var(--line); border-radius: 7px; background: #202820; box-shadow: 0 8px 22px #0007; }
+    .remove-entry { width: 100%; padding: 7px 9px; border: 0; border-radius: 5px; background: transparent; color: #e0aaa0; text-align: left; font-size: 11px; }
+    .remove-entry:hover { background: #422a27; color: #f0c2b6; }
     .empty { padding: 34px; text-align: center; color: var(--muted); grid-column: 1/-1; }
+    /* Feedback toasts and reusable entry/confirmation dialogs. */
     .toast { position: fixed; right: 22px; bottom: 22px; z-index: 10; padding: 12px 17px; background: #29352b; border: 1px solid #52644f; border-radius: 8px; color: #e7eee3; box-shadow: 0 8px 30px #0006; }
     .modal-backdrop { position: fixed; inset: 0; z-index: 20; background: #090d0bd9; display: grid; place-items: center; padding: 18px; }
     .modal { width: min(440px,100%); padding: 23px; border: 1px solid #39463a; border-radius: 11px; background: #1b231d; box-shadow: 0 20px 70px #0008; }
+    .delete-modal > p { color: #bdc7bb; font-size: 12px; line-height: 1.6; }
     .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     .modal-head h2 { font: 600 20px var(--serif); margin: 0; }
     .close { border: 0; background: transparent; color: #aab5a8; font-size: 21px; }
@@ -127,7 +136,10 @@
     .field textarea { min-height: 74px; resize: vertical; }
     .field input:focus, .field textarea:focus, .field select:focus { border-color: #a88c58; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; }
+    .danger-button { border: 1px solid #8c4c43; border-radius: 7px; padding: 9px 12px; background: #713b34; color: #fff0e8; font-size: 12px; }
+    .danger-button:hover { background: #88483e; }
     [hidden] { display: none !important; }
+    /* Collapse columns as the workspace narrows for tablets and phones. */
     @media (max-width: 980px) {
       .sidebar { width: 205px; }
       .main { margin-left: 205px; }

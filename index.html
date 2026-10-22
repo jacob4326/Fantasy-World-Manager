@@ -9,60 +9,56 @@
 </head>
 <body>
   <div class="app">
+    <!-- Sidebar identifies the current world and opens its main collections. -->
     <aside class="sidebar">
       <div class="brand"><div class="brand-mark">✧</div><div><div class="brand-name">Myth Docks</div><span class="brand-sub">Port for Worldbuilding</span></div></div>
       <div class="world-label">Current world</div>
-      <div class="world-switch"><div><strong>The Shattered Realms</strong><small>High fantasy · 3rd age</small></div><span class="switch-caret">⌄</span></div>
+      <div class="world-switch"><div><strong>Untitled World</strong><small>Ready for your first idea</small></div><span class="switch-caret">⌄</span></div>
       <div class="nav-label">Workspace</div>
       <nav class="nav" aria-label="Main navigation">
         <button class="active" data-view="overview"><span class="nav-icon">⌂</span>Overview</button>
-        <button data-view="places"><span class="nav-icon">⌖</span>Places<span class="nav-count" data-count="places">8</span></button>
-        <button data-view="characters"><span class="nav-icon">♙</span>Characters<span class="nav-count" data-count="characters">12</span></button>
-        <button data-view="factions"><span class="nav-icon">⚑</span>Factions<span class="nav-count" data-count="factions">4</span></button>
-        <button data-view="timeline"><span class="nav-icon">◷</span>Timeline<span class="nav-count" data-count="timeline">6</span></button>
+        <button data-view="places"><span class="nav-icon">⌖</span>Places<span class="nav-count" data-count="places">0</span></button>
+        <button data-view="characters"><span class="nav-icon">♙</span>Characters<span class="nav-count" data-count="characters">0</span></button>
+        <button data-view="factions"><span class="nav-icon">⚑</span>Factions<span class="nav-count" data-count="factions">0</span></button>
+        <button data-view="timeline"><span class="nav-icon">◷</span>Timeline<span class="nav-count" data-count="timeline">0</span></button>
       </nav>
-      <div class="side-bottom"><strong>✦ &nbsp; The Shattered Realms</strong>Last edited just now</div>
+      <div class="side-bottom"><strong>✦ &nbsp; Untitled World</strong>Your blank canvas awaits</div>
     </aside>
+    <!-- Main area contains the page toolbar, overview dashboard, and collection views. -->
     <main class="main">
-      <header class="topbar"><div class="crumb">My worlds &nbsp;/&nbsp; <b>The Shattered Realms</b></div><div class="top-actions"><button class="icon-btn" aria-label="Search" id="focus-search">⌕</button><button class="icon-btn" aria-label="Notifications">♧</button><div class="avatar">AL</div></div></header>
+      <header class="topbar"><div class="crumb">My worlds &nbsp;/&nbsp; <b>Untitled World</b></div><div class="top-actions"><button class="icon-btn" aria-label="Search" id="focus-search">⌕</button><button class="icon-btn" aria-label="Notifications">♧</button><div class="avatar">✧</div></div></header>
       <div class="content">
+        <!-- Overview gives a new world useful entry points without sample lore. -->
         <section id="overview-view">
-          <div class="welcome"><div><div class="eyebrow">Wednesday, 14th of Frostfall</div><h1>Welcome back, Alex</h1><p>Your world is taking shape. Here's what is happening across the realms.</p></div><button class="primary" id="quick-add">＋ &nbsp; Create new</button></div>
+          <div class="welcome"><div><div class="eyebrow">YOUR STORY STARTS HERE</div><h1>A world of your own</h1><p>Build it from the ground up. Add a place, a character, a faction, or a moment in history.</p></div><button class="primary" id="quick-add">＋ &nbsp; Create your first entry</button></div>
           <div class="stats">
-            <div class="stat"><div class="stat-top">Places <span class="stat-icon">⌖</span></div><div class="stat-num" data-stat="places">8</div><div class="stat-note">Across 3 regions</div></div>
-            <div class="stat"><div class="stat-top">Characters <span class="stat-icon">♙</span></div><div class="stat-num" data-stat="characters">12</div><div class="stat-note">5 heroes · 7 others</div></div>
-            <div class="stat"><div class="stat-top">Factions <span class="stat-icon">⚑</span></div><div class="stat-num" data-stat="factions">4</div><div class="stat-note">2 allied · 2 opposed</div></div>
-            <div class="stat"><div class="stat-top">Timeline events <span class="stat-icon">◷</span></div><div class="stat-num" data-stat="timeline">6</div><div class="stat-note">Spanning 2,400 years</div></div>
+            <div class="stat"><div class="stat-top">Places <span class="stat-icon">⌖</span></div><div class="stat-num" data-stat="places">0</div><div class="stat-note">Ready to be discovered</div></div>
+            <div class="stat"><div class="stat-top">Characters <span class="stat-icon">♙</span></div><div class="stat-num" data-stat="characters">0</div><div class="stat-note">Waiting to meet them</div></div>
+            <div class="stat"><div class="stat-top">Factions <span class="stat-icon">⚑</span></div><div class="stat-num" data-stat="factions">0</div><div class="stat-note">Yours to imagine</div></div>
+            <div class="stat"><div class="stat-top">Timeline events <span class="stat-icon">◷</span></div><div class="stat-num" data-stat="timeline">0</div><div class="stat-note">History starts with you</div></div>
           </div>
           <div class="dashboard-grid">
             <section class="panel">
-              <div class="panel-head"><div><h2>Atlas of the Western Reach</h2><p>Your world, at a glance</p></div><button class="text-button" data-open-view="places">Explore map ↗</button></div>
-              <div class="map-wrap"><div class="map" role="img" aria-label="Illustrated map of the Western Reach">
-                <span class="map-label" style="left:16%;top:29%">Frostholm</span><i class="pin" style="left:22%;top:42%"></i>
-                <span class="map-label" style="left:57%;top:22%">Eldergrove</span><i class="pin" style="left:64%;top:36%"></i>
-                <span class="map-label" style="left:39%;top:63%">The Sunken Vale</span><i class="pin" style="left:48%;top:57%"></i>
-                <span class="map-label" style="left:76%;top:67%">Ashen Coast</span><i class="pin" style="left:72%;top:59%"></i>
-              </div><div class="map-legend"><span><i class="legend-dot"></i>Settlements</span><span><i class="legend-dot green"></i>Wild regions</span><span><i class="legend-dot blue"></i>Uncharted</span></div></div>
+              <div class="panel-head"><div><h2>World atlas</h2><p>A blank canvas for your setting</p></div><button class="text-button" id="add-first-place">＋ Add a place</button></div>
+              <div class="map-wrap"><div class="map" role="img" aria-label="Empty world map canvas">
+                <div class="map-empty"><span>✧</span><strong>Your map is waiting</strong><small>Add a place to begin charting your world.</small></div>
+              </div></div>
             </section>
             <section class="panel">
-              <div class="panel-head"><div><h2>Recent activity</h2><p>The latest from your world</p></div><button class="text-button" id="clear-activity">Clear</button></div>
-              <div class="activity-list" id="activity-list">
-                <div class="activity-item"><div class="activity-mark">⌖</div><div class="activity-copy"><strong>Frostholm</strong> was added to the atlas<small>Places · 2 hours ago</small></div></div>
-                <div class="activity-item"><div class="activity-mark">♙</div><div class="activity-copy"><strong>Elara Moonwhisper</strong> joined the story<small>Characters · Yesterday</small></div></div>
-                <div class="activity-item"><div class="activity-mark">◷</div><div class="activity-copy">The <strong>Fall of the Star Kings</strong> was recorded<small>Timeline · 3 days ago</small></div></div>
-                <div class="activity-item"><div class="activity-mark">⚑</div><div class="activity-copy"><strong>Order of the Veil</strong> details updated<small>Factions · 1 week ago</small></div></div>
-              </div>
+              <div class="panel-head"><div><h2>Recent activity</h2><p>Your worldbuilding as it unfolds</p></div></div>
+              <div class="activity-list" id="activity-list"><div class="activity-empty">Nothing here yet. Your creations will show up as you build.</div></div>
             </section>
           </div>
           <div class="lower-grid">
-            <section class="panel"><div class="panel-head"><div><h2>Continue creating</h2><p>Pick up where you left off</p></div><button class="text-button" data-open-view="places">View all</button></div>
-              <div class="featured"><div class="feature-art">🏔</div><div><h3>Frostholm</h3><p>A quiet mountain settlement at the edge of the known world.</p></div><span class="tag">PLACE</span></div>
+            <section class="panel"><div class="panel-head"><div><h2>Start building</h2><p>Every world begins somewhere</p></div></div>
+              <div class="featured"><div class="feature-art">⌖</div><div><h3>Make your first place</h3><p>Dream up a city, a hidden valley, or somewhere entirely unexpected.</p></div><button class="secondary" data-create-category="places">Create</button></div>
             </section>
-            <section class="panel"><div class="panel-head"><div><h2>Worldbuilding prompt</h2><p>A spark for your next idea</p></div><span class="stat-icon">✧</span></div>
-              <div class="featured"><div class="feature-art">✦</div><div><h3>What do they fear?</h3><p>What ancient thing sleeps beneath the Sunken Vale, and who knows the truth?</p></div></div>
+            <section class="panel"><div class="panel-head"><div><h2>Choose a starting point</h2><p>There are many ways into a world</p></div><span class="stat-icon">✧</span></div>
+              <div class="featured"><div class="feature-art">✦</div><div><h3>A person, a power, or a moment</h3><p>Start wherever inspiration strikes. You can connect the pieces later.</p></div><button class="secondary" data-create-category="characters">Create</button></div>
             </section>
           </div>
         </section>
+        <!-- JavaScript fills this view with searchable entries for the selected category. -->
         <section id="collection-view" hidden>
           <div class="welcome"><div><div class="eyebrow" id="collection-eyebrow">WORLD INDEX</div><h1 id="collection-title">Places</h1><p id="collection-description">Landmarks, regions, and hidden corners of your world.</p></div><button class="primary" id="add-entry">＋ &nbsp; Add place</button></div>
           <div class="list-toolbar"><h2 id="list-heading">All places</h2><label class="search"><span>⌕</span><input id="search-input" type="search" placeholder="Search your world..." aria-label="Search entries"></label></div>
@@ -71,8 +67,10 @@
       </div>
     </main>
   </div>
+  <!-- Dialogs and brief status messages are inserted here by app.js. -->
   <div id="modal-root"></div>
   <div id="toast-root" aria-live="polite"></div>
+  <!-- App logic loads after the page elements so it can attach their interactions. -->
   <script src="app.js"></script>
 </body>
 </html>

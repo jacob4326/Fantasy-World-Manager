@@ -1,42 +1,9 @@
+// Empty collections define the starter world; saved entries are loaded below.
 const defaults = {
-      places: [
-        ["Frostholm","🏔","A quiet mountain settlement at the edge of the known world.","Northern Marches · Settlement"],
-        ["Eldergrove","🌳","An ancient forest where the trees remember every name.","Greenveil · Wild region"],
-        ["The Sunken Vale","🌫","A mist-shrouded valley swallowed by the earth long ago.","Western Reach · Region"],
-        ["Ashen Coast","🌊","Black-sand shores scarred by the fires of a fallen star.","Southern Coast · Coast"],
-        ["Thornwatch Keep","🏰","A fortress guarding the only safe pass through the mountains.","Northern Marches · Landmark"],
-        ["Meridian","🏛","The shining capital, built where three rivers meet.","Heartlands · City"],
-        ["Whispering Isles","⛵","A scattered archipelago said to drift with the tides.","Far Sea · Islands"],
-        ["The Glass Desert","☀","A vast expanse of fused sand, bright as a mirror.","Eastern Expanse · Region"]
-      ],
-      characters: [
-        ["Elara Moonwhisper","🧝","An exiled ranger who can hear the voices of old trees.","Ranger · Eldergrove"],
-        ["King Aldric Vane","👑","A ruler haunted by the prophecy that crowned him.","Monarch · Meridian"],
-        ["Tomas Reed","🗡","A quick-witted courier with a map no one can read.","Scout · Frostholm"],
-        ["Sister Maelin","🕯","Keeper of the last unbroken record of the Star Kings.","Archivist · Meridian"],
-        ["Bram Coppervein","⚒","A mountain smith whose blades carry a faint blue flame.","Smith · Frostholm"],
-        ["Neris Tidecaller","🐚","A navigator who charts the shifting currents around the Isles.","Navigator · Whispering Isles"],
-        ["Veyra Ashborn","🔥","A scholar studying the strange glass left by the fallen star.","Scholar · Ashen Coast"],
-        ["Old Rowan","🌿","The oldest living guide in Eldergrove, though no one knows their age.","Guide · Eldergrove"],
-        ["Captain Sella Marr","⚓","A smuggler captain with friends in every harbor.","Sailor · Ashen Coast"],
-        ["Ilyan Farstrider","🏹","A scout who returned from beyond the Glass Desert alone.","Scout · Eastern Expanse"],
-        ["The Pale Regent","🎭","A masked envoy whose true allegiance remains a mystery.","Envoy · Unknown"],
-        ["Pip Underbough","🍄","A cheerful mapmaker with an unusual talent for finding lost roads.","Cartographer · Meridian"]
-      ],
-      factions: [
-        ["Order of the Veil","🌙","A secretive order sworn to keep the old magic asleep.","Secret society · Neutral"],
-        ["The Verdant Court","🍃","Guardians of the living wilds and the ancient pacts.","Druidic circle · Allied"],
-        ["Ironbound League","⚒","Merchant princes who control the mountain passes.","Trade league · Opposed"],
-        ["Dawnwardens","☀","Oath-bound protectors of the scattered settlements.","Knightly order · Allied"]
-      ],
-      timeline: [
-        ["The First Dawn","🌅","The elder races raise the first cities beneath a waking sun.","Year 0 · Mythic Age"],
-        ["Oath of the Verdant Court","🍃","The forest clans bind their fate to the ancient woods.","Year 410 · Green Age"],
-        ["Fall of the Star Kings","☄","A burning star ends the reign of the sky-born dynasty.","Year 2187 · Third Age"],
-        ["The Shattering","🌋","The western lands fracture; the old roads vanish beneath the sea.","Year 2201 · Third Age"],
-        ["The Long Winter","❄","Three harvests fail and the Northern Marches fall silent.","Year 2314 · Third Age"],
-        ["Treaty of Three Rivers","🕊","The fractured city-states unite to keep the peace in the Heartlands.","Year 2398 · Third Age"]
-      ]
+      places: [],
+      characters: [],
+      factions: [],
+      timeline: []
     };
     const meta = {
       places: ["Places","Landmarks, regions, and hidden corners of your world.","All places","⌖","Place"],
@@ -44,17 +11,23 @@ const defaults = {
       factions: ["Factions","Orders, kingdoms, and powers shaping the realms.","All factions","⚑","Faction"],
       timeline: ["Timeline","The moments that changed the course of history.","All events","◷","Event"]
     };
+    // Read persisted entries while keeping missing or malformed categories empty.
     let state;
     try {
       const saved = localStorage.getItem("mythos-world-data");
-      state = saved ? { ...defaults, ...JSON.parse(saved) } : structuredClone(defaults);
+      const savedState = saved ? JSON.parse(saved) : {};
+      state = Object.fromEntries(
+        Object.keys(defaults).map(key => [key, Array.isArray(savedState[key]) ? savedState[key] : []])
+      );
     } catch (error) {
       console.error("Unable to load saved world data.", error);
-      state = structuredClone(defaults);
-      showToast("Saved data couldn't be loaded; using the starter world.");
+      state = { ...defaults };
+      showToast("Saved data couldn't be loaded; starting with an empty world.");
     }
+    // Track which workspace section is currently shown.
     let activeView = "overview";
 
+    // Save world data locally so it remains available after a reload.
     function persist() {
       try {
         localStorage.setItem("mythos-world-data", JSON.stringify(state));
@@ -63,6 +36,7 @@ const defaults = {
         showToast("Couldn't save changes in this browser.");
       }
     }
+    // Give the user short-lived feedback after important actions or storage errors.
     function showToast(message) {
       const root = document.getElementById("toast-root");
       root.innerHTML = "";
@@ -72,6 +46,7 @@ const defaults = {
       root.append(toast);
       setTimeout(() => toast.remove(), 3000);
     }
+    // Keep sidebar badges and dashboard totals synchronized with saved entries.
     function updateCounts() {
       Object.keys(meta).forEach(key => {
         document.querySelector(`[data-count="${key}"]`).textContent = state[key].length;
@@ -79,6 +54,7 @@ const defaults = {
         if (stat) stat.textContent = state[key].length;
       });
     }
+    // Switch between the overview and a searchable category collection.
     function openView(view) {
       activeView = view;
       document.querySelectorAll(".nav button").forEach(button => button.classList.toggle("active", button.dataset.view === view));
@@ -95,20 +71,24 @@ const defaults = {
       document.getElementById("search-input").value = "";
       renderCollection();
     }
+    // Build the active collection cards, including an overflow menu for actions.
     function renderCollection() {
       const entries = state[activeView] || [];
       const query = document.getElementById("search-input").value.trim().toLowerCase();
-      const filtered = entries.filter(entry => entry.slice(0,4).join(" ").toLowerCase().includes(query));
+      const filtered = entries
+        .map((entry, index) => ({ entry, index }))
+        .filter(({ entry }) => entry.slice(0,4).join(" ").toLowerCase().includes(query));
       const target = document.getElementById("collection");
       target.innerHTML = "";
       if (!filtered.length) {
         const empty = document.createElement("div");
         empty.className = "panel empty";
-        empty.textContent = query ? "No entries match your search." : "No entries yet. Add the first one to this world.";
+        const category = activeView === "timeline" ? "events" : activeView;
+        empty.textContent = query ? "No entries match your search." : `No ${category} yet. Create the first one to begin your world.`;
         target.append(empty);
         return;
       }
-      filtered.forEach(entry => {
+      filtered.forEach(({ entry, index: entryIndex }) => {
         const card = document.createElement("article");
         card.className = "panel entry-card";
         const icon = document.createElement("div");
@@ -122,11 +102,54 @@ const defaults = {
         detail.className = "entry-meta";
         detail.textContent = entry[3];
         card.append(icon, title, description, detail);
+        const menu = document.createElement("details");
+        menu.className = "entry-menu";
+        const menuButton = document.createElement("summary");
+        menuButton.textContent = "⋯";
+        menuButton.setAttribute("aria-label", `More options for ${entry[0]}`);
+        const menuOptions = document.createElement("div");
+        menuOptions.className = "entry-menu-options";
+        const removeButton = document.createElement("button");
+        removeButton.className = "remove-entry";
+        removeButton.type = "button";
+        removeButton.textContent = "Remove";
+        removeButton.addEventListener("click", () => {
+          menu.open = false;
+          openDeleteConfirmation(activeView, entryIndex);
+        });
+        menuOptions.append(removeButton);
+        menu.append(menuButton, menuOptions);
+        card.append(menu);
         target.append(card);
       });
     }
-    function openModal() {
-      const category = activeView === "overview" ? "places" : activeView;
+    // Confirm destructive changes before removing an entry from its category.
+    function openDeleteConfirmation(category, entryIndex) {
+      const entry = state[category][entryIndex];
+      if (!entry) return;
+
+      const type = category === "timeline" ? "event" : meta[category][4].toLowerCase();
+      const root = document.getElementById("modal-root");
+      root.innerHTML = `<div class="modal-backdrop"><section class="modal delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" aria-describedby="delete-description"><div class="modal-head"><h2 id="delete-title">Remove ${type}?</h2><button class="close" type="button" aria-label="Close">×</button></div><p id="delete-description"></p><div class="modal-actions"><button class="secondary" type="button" id="cancel-delete">Cancel</button><button class="danger-button" type="button" id="confirm-delete">Remove ${type}</button></div></section></div>`;
+      root.querySelector("#delete-description").textContent = `"${entry[0]}" will be permanently removed from your world.`;
+      root.querySelector(".close").addEventListener("click", closeModal);
+      root.querySelector("#cancel-delete").addEventListener("click", closeModal);
+      root.querySelector(".modal-backdrop").addEventListener("click", event => {
+        if (event.target.classList.contains("modal-backdrop")) closeModal();
+      });
+      root.querySelector("#confirm-delete").addEventListener("click", () => {
+        state[category].splice(entryIndex, 1);
+        persist();
+        updateCounts();
+        closeModal();
+        renderCollection();
+        showToast(`${type[0].toUpperCase()}${type.slice(1)} removed.`);
+      });
+      root.querySelector("#cancel-delete").focus();
+    }
+    // Collect a new entry using fields appropriate to the selected category.
+    function openModal(requestedCategory) {
+      const category = requestedCategory || (activeView === "overview" ? "places" : activeView);
       const type = meta[category][4];
       const root = document.getElementById("modal-root");
       root.innerHTML = `<div class="modal-backdrop"><form class="modal" id="entry-form"><div class="modal-head"><h2>Create ${type.toLowerCase()}</h2><button class="close" type="button" aria-label="Close">×</button></div>
@@ -150,18 +173,23 @@ const defaults = {
       });
       root.querySelector('input[name="name"]').focus();
     }
+    // Clear whichever dialog is currently open.
     function closeModal() { document.getElementById("modal-root").innerHTML = ""; }
+
+    // Connect navigation, creation shortcuts, search, and keyboard dismissal.
     document.querySelectorAll(".nav button").forEach(button => button.addEventListener("click", () => openView(button.dataset.view)));
     document.querySelectorAll("[data-open-view]").forEach(button => button.addEventListener("click", () => openView(button.dataset.openView)));
-    document.getElementById("quick-add").addEventListener("click", openModal);
-    document.getElementById("add-entry").addEventListener("click", openModal);
+    document.getElementById("quick-add").addEventListener("click", () => openModal());
+    document.getElementById("add-entry").addEventListener("click", () => openModal());
+    document.getElementById("add-first-place").addEventListener("click", () => openModal("places"));
+    document.querySelectorAll("[data-create-category]").forEach(button => {
+      button.addEventListener("click", () => openModal(button.dataset.createCategory));
+    });
     document.getElementById("search-input").addEventListener("input", renderCollection);
     document.getElementById("focus-search").addEventListener("click", () => {
       if (activeView === "overview") openView("places");
       document.getElementById("search-input").focus();
     });
-    document.getElementById("clear-activity").addEventListener("click", () => {
-      document.getElementById("activity-list").innerHTML = '<div class="empty">You’re all caught up. New activity will appear here.</div>';
-    });
     document.addEventListener("keydown", event => { if (event.key === "Escape") closeModal(); });
+    // Set the initial counts from the loaded local world.
     updateCounts();
