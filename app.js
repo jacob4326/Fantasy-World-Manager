@@ -13,6 +13,7 @@ const defaults = {
       items: ["Items","Artifacts, tools, treasures, and objects from your world.","All items","✧","Item"],
       timeline: ["Timeline","The moments that changed the course of history.","All events","◷","Event"]
     };
+    const icons = { places: "✦", characters: "♙", factions: "⚑", items: "✧", timeline: "◷" };
     // Each world stores its own independent collections.
     const worldStorageKey = "mythos-worlds";
     const legacyStorageKey = "mythos-world-data";
@@ -57,6 +58,7 @@ const defaults = {
     }
     // Track which workspace section is currently shown.
     let activeView = "overview";
+    let isPlacingMapMarker = false;
 
     // Normalize stored collections so older saves safely gain newer categories.
     function normalizeData(data) {
@@ -71,7 +73,10 @@ const defaults = {
               entry[2] || "",
               entry[3] || meta[key][4],
               typeof entry[4] === "string" ? entry[4] : entry[2] || "",
-              Array.isArray(entry[5]) ? entry[5].filter(image => typeof image === "string" && image.startsWith("data:image/")) : []
+              Array.isArray(entry[5]) ? entry[5].filter(image => typeof image === "string" && image.startsWith("data:image/")) : [],
+              typeof entry[6] === "string" ? entry[6] : "",
+              Number.isFinite(entry[7]) && entry[7] >= 0 && entry[7] <= 100 ? entry[7] : null,
+              Number.isFinite(entry[8]) && entry[8] >= 0 && entry[8] <= 100 ? entry[8] : null
             ])
             : []
         ])
@@ -114,6 +119,94 @@ const defaults = {
         const stat = document.querySelector(`[data-stat="${key}"]`);
         if (stat) stat.textContent = state[key].length;
       });
+    }
+
+    function renderMap() {
+      const map = document.getElementById("world-map");
+      const places = state.places;
+      map.querySelectorAll(".map-marker").forEach(marker => marker.remove());
+      const placedPlaces = places
+        .map((entry, index) => ({ entry, index }))
+        .filter(({ entry }) => Number.isFinite(entry[7]) && Number.isFinite(entry[8]));
+      map.querySelector(".map-empty").hidden = placedPlaces.length > 0;
+      document.getElementById("map-help").textContent = places.length
+        ? `${placedPlaces.length} marked · ${places.length - placedPlaces.length} not placed`
+        : "Add places and mark their locations on your map.";
+      const placeButton = document.getElementById("place-on-map");
+      placeButton.disabled = places.length === 0;
+      placeButton.classList.toggle("active", isPlacingMapMarker);
+      placeButton.setAttribute("aria-pressed", String(isPlacingMapMarker));
+      placeButton.textContent = isPlacingMapMarker ? "Cancel placement" : "Place on map";
+      map.tabIndex = isPlacingMapMarker ? 0 : -1;
+      map.setAttribute("aria-label", isPlacingMapMarker
+        ? "World map. Click or focus and press Enter to choose a location."
+        : "World map. Choose Place on map, then click to position a place.");
+      placedPlaces.forEach(({ entry, index }) => {
+        const marker = document.createElement("button");
+        marker.type = "button";
+        marker.className = "map-marker";
+        marker.style.left = `${entry[7]}%`;
+        marker.style.top = `${entry[8]}%`;
+        marker.title = entry[0];
+        marker.setAttribute("aria-label", `${isPlacingMapMarker ? "Move" : "Open"} ${entry[0]}`);
+        const symbol = document.createElement("span");
+        symbol.textContent = entry[1];
+        marker.append(symbol);
+        marker.addEventListener("click", event => {
+          event.stopPropagation();
+          if (isPlacingMapMarker) {
+            openPlacePlacementModal(entry[7], entry[8], index);
+          } else {
+            openView("places");
+            openEntryDetails("places", index);
+          }
+        });
+        map.append(marker);
+      });
+      map.classList.toggle("placing", isPlacingMapMarker);
+    }
+
+    function openPlacePlacementModal(x, y, selectedIndex) {
+      const root = document.getElementById("modal-root");
+      const options = state.places.map((place, index) =>
+        `<option value="${index}">${escapeHtml(place[0])}${Number.isFinite(place[7]) && Number.isFinite(place[8]) ? " (already marked)" : ""}</option>`
+      ).join("");
+      root.innerHTML = `<div class="modal-backdrop"><form class="modal" id="place-marker-form"><div class="modal-head"><h2>Place on map</h2><button class="close" type="button" aria-label="Close">×</button></div>
+        <p class="placement-help">Choose which place to mark at this location.</p>
+        <label class="field">Place<select name="place" required>${options}</select></label>
+        <div class="modal-actions"><button class="secondary" type="button" id="cancel-marker">Cancel</button><button class="primary" type="submit">Set marker</button></div></form></div>`;
+      const form = root.querySelector("#place-marker-form");
+      if (Number.isInteger(selectedIndex)) form.elements.place.value = String(selectedIndex);
+      root.querySelector(".close").addEventListener("click", closeModal);
+      root.querySelector("#cancel-marker").addEventListener("click", closeModal);
+      root.querySelector(".modal-backdrop").addEventListener("click", event => {
+        if (event.target.classList.contains("modal-backdrop")) closeModal();
+      });
+      form.addEventListener("submit", event => {
+        event.preventDefault();
+        const place = state.places[Number(form.elements.place.value)];
+        if (!place) return;
+        const previousX = place[7];
+        const previousY = place[8];
+        place[7] = x;
+        place[8] = y;
+        if (!persist()) {
+          place[7] = previousX;
+          place[8] = previousY;
+          return;
+        }
+        isPlacingMapMarker = false;
+        closeModal();
+        renderMap();
+        showToast(`${place[0]} marked on the map.`);
+      });
+      form.elements.place.focus();
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, character => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[character]);
     }
 
     // Keep all visible world-name labels and the world picker in sync.
@@ -159,6 +252,8 @@ const defaults = {
       persist();
       renderWorlds();
       updateCounts();
+      isPlacingMapMarker = false;
+      renderMap();
       closeWorldMenu();
       if (activeView !== "overview") {
         document.getElementById("entry-detail-view").hidden = true;
@@ -197,9 +292,11 @@ const defaults = {
         worlds.push(newWorld);
         activeWorldId = newWorld.id;
         state = newWorld.data;
+        isPlacingMapMarker = false;
         persist();
         renderWorlds();
         updateCounts();
+        renderMap();
         closeModal();
         openView("overview");
         showToast(`World "${name}" created.`);
@@ -254,15 +351,29 @@ const defaults = {
       document.getElementById("list-heading").textContent = details[2];
       document.getElementById("add-entry").innerHTML = `＋ &nbsp; Add ${details[4].toLowerCase()}`;
       document.getElementById("search-input").value = "";
+      document.getElementById("group-filter").value = "";
       renderCollection();
     }
     // Build the active collection cards, including an overflow menu for actions.
     function renderCollection() {
       const entries = state[activeView] || [];
       const query = document.getElementById("search-input").value.trim().toLowerCase();
+      const groupFilter = document.getElementById("group-filter");
+      const selectedGroup = groupFilter.value;
+      const groups = [...new Set(entries.map(entry => entry[6]).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+      groupFilter.innerHTML = `<option value="">All groups</option>`;
+      groups.forEach(group => {
+        const option = document.createElement("option");
+        option.value = group;
+        option.textContent = group;
+        groupFilter.append(option);
+      });
+      groupFilter.value = groups.includes(selectedGroup) ? selectedGroup : "";
+      groupFilter.disabled = groups.length === 0;
       const filtered = entries
         .map((entry, index) => ({ entry, index }))
-        .filter(({ entry }) => entry.slice(0,4).join(" ").toLowerCase().includes(query));
+        .filter(({ entry }) => entry.slice(0, 4).join(" ").toLowerCase().includes(query)
+          && (!groupFilter.value || entry[6] === groupFilter.value));
       const target = document.getElementById("collection");
       target.innerHTML = "";
       if (!filtered.length) {
@@ -291,6 +402,12 @@ const defaults = {
         detail.className = "entry-meta";
         detail.textContent = entry[3];
         openButton.append(icon, title, description, detail);
+        if (entry[6]) {
+          const group = document.createElement("span");
+          group.className = "tag entry-group";
+          group.textContent = entry[6];
+          openButton.append(group);
+        }
         openButton.addEventListener("click", () => openEntryDetails(activeView, entryIndex));
         card.append(openButton);
         const menu = document.createElement("details");
@@ -468,10 +585,14 @@ const defaults = {
         if (event.target.classList.contains("modal-backdrop")) closeModal();
       });
       root.querySelector("#confirm-delete").addEventListener("click", () => {
-        state[category].splice(entryIndex, 1);
-        persist();
+        const [removedEntry] = state[category].splice(entryIndex, 1);
+        if (!persist()) {
+          state[category].splice(entryIndex, 0, removedEntry);
+          return;
+        }
         updateCounts();
         closeModal();
+        if (category === "places") renderMap();
         renderCollection();
         showToast(`${type[0].toUpperCase()}${type.slice(1)} removed.`);
       });
@@ -488,11 +609,15 @@ const defaults = {
         <label class="field">Name<input name="name" maxlength="60" required></label>
         <label class="field">Description<textarea name="description" maxlength="240" required></textarea></label>
         <label class="field">${category === "timeline" ? "Date · Era" : "Type · Region"}<input name="detail" maxlength="60"></label>
+        <label class="field">Icon<input name="icon" maxlength="8" placeholder="Emoji or symbol" aria-describedby="icon-help"><small id="icon-help">Use an emoji or symbol to personalize this entry.</small></label>
+        <label class="field">Group<input name="group" maxlength="40" placeholder="e.g. Royal family"></label>
         <div class="modal-actions"><button class="secondary" type="button" id="cancel-edit">Cancel</button><button class="primary" type="submit">Save changes</button></div></form></div>`;
       const form = root.querySelector("#edit-entry-form");
       form.elements.name.value = entry[0];
       form.elements.description.value = entry[2];
       form.elements.detail.value = entry[3];
+      form.elements.icon.value = entry[1];
+      form.elements.group.value = entry[6] || "";
       root.querySelector(".close").addEventListener("click", closeModal);
       root.querySelector("#cancel-edit").addEventListener("click", closeModal);
       root.querySelector(".modal-backdrop").addEventListener("click", event => {
@@ -500,11 +625,18 @@ const defaults = {
       });
       form.addEventListener("submit", event => {
         event.preventDefault();
+        const previousValues = [entry[0], entry[1], entry[2], entry[3], entry[6]];
         entry[0] = form.elements.name.value.trim();
         entry[2] = form.elements.description.value.trim();
         entry[3] = form.elements.detail.value.trim() || type;
-        persist();
+        entry[1] = form.elements.icon.value.trim() || icons[category];
+        entry[6] = form.elements.group.value.trim();
+        if (!persist()) {
+          [entry[0], entry[1], entry[2], entry[3], entry[6]] = previousValues;
+          return;
+        }
         closeModal();
+        if (category === "places") renderMap();
         if (!document.getElementById("entry-detail-view").hidden) {
           openEntryDetails(category, entryIndex);
         } else {
@@ -524,26 +656,35 @@ const defaults = {
         <label class="field">Name<input name="name" maxlength="60" required placeholder="Give it a name"></label>
         <label class="field">Description<textarea name="description" maxlength="240" required placeholder="What should the world know?"></textarea></label>
         <label class="field">${category === "timeline" ? "Date · Era" : "Type · Region"}<input name="detail" maxlength="60" placeholder="${category === "timeline" ? "Year 2400 · Third Age" : "e.g. Settlement · Northern Marches"}"></label>
+        <label class="field">Icon<input name="icon" maxlength="8" placeholder="Emoji or symbol" aria-describedby="icon-help"><small id="icon-help">Use an emoji or symbol to personalize this entry.</small></label>
+        <label class="field">Group<input name="group" maxlength="40" placeholder="e.g. Royal family"></label>
         <div class="modal-actions"><button class="secondary" type="button" id="cancel-entry">Cancel</button><button class="primary" type="submit">Create ${type.toLowerCase()}</button></div></form></div>`;
+      root.querySelector('input[name="icon"]').value = icons[category];
       root.querySelector(".close").addEventListener("click", closeModal);
       root.querySelector("#cancel-entry").addEventListener("click", closeModal);
       root.querySelector(".modal-backdrop").addEventListener("click", event => { if (event.target.classList.contains("modal-backdrop")) closeModal(); });
       root.querySelector("#entry-form").addEventListener("submit", event => {
         event.preventDefault();
         const form = new FormData(event.currentTarget);
-        const icons = { places: "✦", characters: "♙", factions: "⚑", items: "✧", timeline: "◷" };
         const summary = form.get("description").trim();
         state[category].unshift([
           form.get("name").trim(),
-          icons[category],
+          form.get("icon").trim() || icons[category],
           summary,
           form.get("detail").trim() || meta[category][4],
           summary,
-          []
+          [],
+          form.get("group").trim(),
+          null,
+          null
         ]);
-        persist();
+        if (!persist()) {
+          state[category].shift();
+          return;
+        }
         updateCounts();
         closeModal();
+        if (category === "places") renderMap();
         if (activeView !== "overview") renderCollection();
         showToast(`${type} added to your world.`);
       });
@@ -558,6 +699,28 @@ const defaults = {
     document.getElementById("quick-add").addEventListener("click", () => openModal());
     document.getElementById("add-entry").addEventListener("click", () => openModal());
     document.getElementById("add-first-place").addEventListener("click", () => openModal("places"));
+    document.getElementById("place-on-map").addEventListener("click", () => {
+      isPlacingMapMarker = !isPlacingMapMarker;
+      renderMap();
+      if (isPlacingMapMarker) {
+        document.getElementById("world-map").focus();
+        showToast("Click the map where you want to place a marker.");
+      }
+    });
+    function chooseMapLocation(event) {
+      if (!isPlacingMapMarker) return;
+      const map = event.currentTarget;
+      const bounds = map.getBoundingClientRect();
+      const x = Math.max(5, Math.min(95, ((event.clientX - bounds.left) / bounds.width) * 100));
+      const y = Math.max(8, Math.min(92, ((event.clientY - bounds.top) / bounds.height) * 100));
+      openPlacePlacementModal(x, y);
+    }
+    document.getElementById("world-map").addEventListener("click", chooseMapLocation);
+    document.getElementById("world-map").addEventListener("keydown", event => {
+      if (event.target !== event.currentTarget || !isPlacingMapMarker || !["Enter", " "].includes(event.key)) return;
+      event.preventDefault();
+      openPlacePlacementModal(50, 50);
+    });
     document.querySelectorAll("[data-create-category]").forEach(button => {
       button.addEventListener("click", () => openModal(button.dataset.createCategory));
     });
@@ -572,6 +735,7 @@ const defaults = {
       openCreateWorldModal();
     });
     document.getElementById("search-input").addEventListener("input", renderCollection);
+    document.getElementById("group-filter").addEventListener("change", renderCollection);
     document.getElementById("back-to-collection").addEventListener("click", () => openView(activeView));
     document.getElementById("focus-search").addEventListener("click", () => {
       if (activeView === "overview") openView("places");
@@ -589,3 +753,4 @@ const defaults = {
     // Set the initial counts from the loaded local world.
     renderWorlds();
     updateCounts();
+    renderMap();

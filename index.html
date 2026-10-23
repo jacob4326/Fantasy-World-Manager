@@ -48,8 +48,8 @@
           </div>
           <div class="dashboard-grid">
             <section class="panel">
-              <div class="panel-head"><div><h2>World atlas</h2><p>A blank canvas for your setting</p></div><button class="text-button" id="add-first-place">＋ Add a place</button></div>
-              <div class="map-wrap"><div class="map" role="img" aria-label="Empty world map canvas">
+              <div class="panel-head map-panel-head"><div><h2>World atlas</h2><p id="map-help">Add places and mark their locations on your map.</p></div><div class="map-actions"><button class="secondary" id="place-on-map" type="button" aria-pressed="false">Place on map</button><button class="text-button" id="add-first-place">＋ Add a place</button></div></div>
+              <div class="map-wrap"><div class="map" id="world-map" role="group" tabindex="-1" aria-label="World map. Choose Place on map, then click to position a place.">
                 <div class="map-empty"><span>✧</span><strong>Your map is waiting</strong><small>Add a place to begin charting your world.</small></div>
               </div></div>
             </section>
@@ -70,7 +70,7 @@
         <!-- JavaScript fills this view with searchable entries for the selected category. -->
         <section id="collection-view" hidden>
           <div class="welcome"><div><div class="eyebrow" id="collection-eyebrow">WORLD INDEX</div><h1 id="collection-title">Places</h1><p id="collection-description">Landmarks, regions, and hidden corners of your world.</p></div><button class="primary" id="add-entry">＋ &nbsp; Add place</button></div>
-          <div class="list-toolbar"><h2 id="list-heading">All places</h2><label class="search"><span>⌕</span><input id="search-input" type="search" placeholder="Search your world..." aria-label="Search entries"></label></div>
+          <div class="list-toolbar"><h2 id="list-heading">All places</h2><div class="collection-filters"><label class="group-filter">Group<select id="group-filter" aria-label="Filter entries by group"><option value="">All groups</option></select></label><label class="search"><span>⌕</span><input id="search-input" type="search" placeholder="Search your world..." aria-label="Search entries"></label></div></div>
           <div class="collection" id="collection"></div>
         </section>
         <!-- Detail pages show the full notes and image gallery for an entry. -->
