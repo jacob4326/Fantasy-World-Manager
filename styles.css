@@ -68,7 +68,7 @@
     .secondary { border: 1px solid var(--line); background: var(--panel); border-radius: 7px; padding: 9px 12px; color: #cad2c7; font-size: 12px; }
     .secondary:hover { border-color: #596451; }
     /* Overview dashboard metrics and content panels. */
-    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 13px; margin-bottom: 21px; }
+    .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 13px; margin-bottom: 21px; }
     .stat { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 16px 18px; color: inherit; text-align: left; transition: .15s; }
     .stat:hover { background: var(--panel-2); border-color: #596451; }
     .stat:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }

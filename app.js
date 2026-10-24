@@ -4,6 +4,8 @@ const defaults = {
       places: [],
       characters: [],
       factions: [],
+      cultures: [],
+      magic: [],
       items: [],
       creatures: [],
       monsters: [],
@@ -14,12 +16,14 @@ const defaults = {
       places: ["Places","Landmarks, regions, and hidden corners of your world.","All places","⌖","Place"],
       characters: ["Characters","Heroes, rivals, and everyone caught in between.","All characters","♙","Character"],
       factions: ["Factions","Orders, kingdoms, and powers shaping the realms.","All factions","⚑","Faction"],
-      items: ["Items","Artifacts, tools, treasures, and objects from your world.","All items","✧","Item"],
+      cultures: ["Cultures","Traditions, customs, and ways of life across your world.","All cultures","◈","Culture"],
+      magic: ["Magic","Magical forces, practices, and mysteries in your world.","All magic","✧","Magic"],
+      items: ["Items","Artifacts, tools, treasures, and objects from your world.","All items","⚒","Item"],
       creatures: ["Creatures","Beasts, wildlife, and wondrous living things across your world.","All creatures","♞","Creature"],
       monsters: ["Monsters","Terrifying foes, legendary threats, and creatures of the dark.","All monsters","☠","Monster"],
       timeline: ["Timeline","The moments that changed the course of history.","All events","◷","Event"]
     };
-    const icons = { maps: "▣", places: "✦", characters: "♙", factions: "⚑", items: "✧", creatures: "♞", monsters: "☠", timeline: "◷" };
+    const icons = { maps: "▣", places: "✦", characters: "♙", factions: "⚑", cultures: "◈", magic: "✧", items: "⚒", creatures: "♞", monsters: "☠", timeline: "◷" };
     // Each world stores its own independent collections.
     const worldStorageKey = "mythos-worlds";
     const legacyStorageKey = "mythos-world-data";
