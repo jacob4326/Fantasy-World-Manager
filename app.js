@@ -65,6 +65,7 @@ const defaults = {
     // Track which workspace section is currently shown.
     let activeView = "overview";
     let isPlacingMapMarker = false;
+    let isTimelineView = false;
 
     // Normalize stored collections so older saves safely gain newer categories.
     function normalizeData(data) {
@@ -421,9 +422,20 @@ const defaults = {
       document.getElementById("collection-description").textContent = details[1];
       document.getElementById("list-heading").textContent = details[2];
       document.getElementById("add-entry").innerHTML = `＋ &nbsp; Add ${details[4].toLowerCase()}`;
+      const timelineViewToggle = document.getElementById("timeline-view-toggle");
+      timelineViewToggle.hidden = view !== "timeline";
+      timelineViewToggle.textContent = isTimelineView ? "List view" : "Timeline view";
+      timelineViewToggle.setAttribute("aria-pressed", String(isTimelineView));
       document.getElementById("search-input").value = "";
       document.getElementById("group-filter").value = "";
       renderCollection();
+    }
+    function getTimelineYear(entry) {
+      const match = entry[3].match(/-?\d[\d,]*/);
+      if (!match) return null;
+      const year = Number.parseInt(match[0].replace(/,/g, ""), 10);
+      if (!Number.isFinite(year)) return null;
+      return /\bBCE?\b/i.test(entry[3]) ? -Math.abs(year) : year;
     }
     // Build the active collection cards, including an overflow menu for actions.
     function renderCollection() {
@@ -445,7 +457,19 @@ const defaults = {
         .map((entry, index) => ({ entry, index }))
         .filter(({ entry }) => entry.slice(0, 4).join(" ").toLowerCase().includes(query)
           && (!groupFilter.value || entry[6] === groupFilter.value));
+      if (activeView === "timeline") {
+        filtered.sort((left, right) => {
+          const leftYear = getTimelineYear(left.entry);
+          const rightYear = getTimelineYear(right.entry);
+          if (leftYear === null || rightYear === null) {
+            if (leftYear === rightYear) return left.index - right.index;
+            return leftYear === null ? 1 : -1;
+          }
+          return leftYear - rightYear || left.index - right.index;
+        });
+      }
       const target = document.getElementById("collection");
+      target.classList.toggle("timeline-view", activeView === "timeline" && isTimelineView);
       target.innerHTML = "";
       if (!filtered.length) {
         const empty = document.createElement("div");
@@ -462,6 +486,7 @@ const defaults = {
         }
         const card = document.createElement("article");
         card.className = "panel entry-card";
+        if (activeView === "timeline" && isTimelineView) card.classList.add("timeline-entry");
         const openButton = document.createElement("button");
         openButton.className = "entry-open";
         openButton.type = "button";
@@ -485,6 +510,15 @@ const defaults = {
         }
         openButton.addEventListener("click", () => openEntryDetails(activeView, entryIndex));
         card.append(openButton);
+        if (activeView === "timeline" && isTimelineView) {
+          const year = getTimelineYear(entry);
+          const yearLabel = document.createElement("span");
+          yearLabel.className = "timeline-year";
+          yearLabel.textContent = year === null
+            ? "Undated"
+            : `${Math.abs(year).toLocaleString()}${year < 0 ? " BCE" : ""}`;
+          card.append(yearLabel);
+        }
         const menu = document.createElement("details");
         menu.className = "entry-menu";
         const menuButton = document.createElement("summary");
@@ -1280,6 +1314,12 @@ const defaults = {
     // Connect navigation, creation shortcuts, search, and keyboard dismissal.
     document.querySelectorAll(".nav button").forEach(button => button.addEventListener("click", () => openView(button.dataset.view)));
     document.querySelectorAll("[data-open-view]").forEach(button => button.addEventListener("click", () => openView(button.dataset.openView)));
+    document.getElementById("timeline-view-toggle").addEventListener("click", event => {
+      isTimelineView = !isTimelineView;
+      event.currentTarget.textContent = isTimelineView ? "List view" : "Timeline view";
+      event.currentTarget.setAttribute("aria-pressed", String(isTimelineView));
+      renderCollection();
+    });
     document.getElementById("quick-add").addEventListener("click", () => openModal());
     document.getElementById("add-entry").addEventListener("click", () => openModal());
     document.getElementById("add-first-place").addEventListener("click", () => openModal("places"));
