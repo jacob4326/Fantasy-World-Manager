@@ -101,7 +101,18 @@ const defaults = {
         ),
         mapImage: typeof source.mapImage === "string" && source.mapImage.startsWith("data:image/")
           ? source.mapImage
-          : ""
+          : "",
+        activity: Array.isArray(source.activity)
+          ? source.activity.filter(item =>
+            item
+            && ["added", "updated", "removed"].includes(item.action)
+            && Object.prototype.hasOwnProperty.call(meta, item.category)
+            && typeof item.entryId === "string"
+            && typeof item.name === "string"
+            && typeof item.timestamp === "string"
+            && Number.isFinite(Date.parse(item.timestamp))
+          ).slice(0, 30)
+          : []
       };
     }
 
@@ -173,6 +184,56 @@ const defaults = {
         const stat = document.querySelector(`[data-stat="${key}"]`);
         if (stat) stat.textContent = state[key].length;
       });
+    }
+
+    function renderActivity() {
+      const target = document.getElementById("activity-list");
+      target.innerHTML = "";
+      if (!state.activity.length) {
+        const empty = document.createElement("div");
+        empty.className = "activity-empty";
+        empty.textContent = "Nothing here yet. Your creations will show up as you build.";
+        target.append(empty);
+        return;
+      }
+      state.activity.slice(0, 6).forEach(item => {
+        const activityItem = document.createElement("div");
+        activityItem.className = "activity-item";
+        const mark = document.createElement("span");
+        mark.className = "activity-mark";
+        mark.textContent = item.action === "added" ? "+" : item.action === "removed" ? "−" : "✎";
+        const copy = document.createElement("div");
+        copy.className = "activity-copy";
+        const message = document.createElement("span");
+        message.textContent = `${item.action} ${meta[item.category][4].toLowerCase()} `;
+        const name = document.createElement("strong");
+        name.textContent = item.name;
+        message.append(name);
+        const timestamp = document.createElement("small");
+        const elapsedMinutes = Math.max(0, Math.floor((Date.now() - Date.parse(item.timestamp)) / 60000));
+        timestamp.textContent = elapsedMinutes < 1
+          ? "Just now"
+          : elapsedMinutes < 60
+            ? `${elapsedMinutes} minute${elapsedMinutes === 1 ? "" : "s"} ago`
+            : elapsedMinutes < 1440
+              ? `${Math.floor(elapsedMinutes / 60)} hour${Math.floor(elapsedMinutes / 60) === 1 ? "" : "s"} ago`
+              : new Date(item.timestamp).toLocaleDateString();
+        copy.append(message, timestamp);
+        activityItem.append(mark, copy);
+        target.append(activityItem);
+      });
+    }
+
+    function addActivity(action, category, entry) {
+      const previousActivity = state.activity;
+      state.activity = [{
+        action,
+        category,
+        entryId: entry[9],
+        name: entry[0],
+        timestamp: new Date().toISOString()
+      }, ...previousActivity].slice(0, 30);
+      return previousActivity;
     }
 
     function renderMap() {
@@ -314,6 +375,7 @@ const defaults = {
       persist();
       renderWorlds();
       updateCounts();
+      renderActivity();
       isPlacingMapMarker = false;
       renderMap();
       closeWorldMenu();
@@ -358,6 +420,7 @@ const defaults = {
         persist();
         renderWorlds();
         updateCounts();
+        renderActivity();
         renderMap();
         closeModal();
         openView("overview");
@@ -1195,6 +1258,7 @@ const defaults = {
       });
       root.querySelector("#confirm-delete").addEventListener("click", () => {
         const [removedEntry] = state[category].splice(entryIndex, 1);
+        const previousActivity = addActivity("removed", category, removedEntry);
         const affectedMaps = category === "places"
           ? state.maps.map(map => ({ map, placements: map[10] || [] }))
           : [];
@@ -1203,10 +1267,12 @@ const defaults = {
         });
         if (!persist()) {
           state[category].splice(entryIndex, 0, removedEntry);
+          state.activity = previousActivity;
           affectedMaps.forEach(({ map, placements }) => { map[10] = placements; });
           return;
         }
         updateCounts();
+        renderActivity();
         closeModal();
         if (category === "places") renderMap();
         renderCollection();
@@ -1247,10 +1313,13 @@ const defaults = {
         entry[3] = form.elements.detail.value.trim() || type;
         entry[1] = form.elements.icon.value.trim() || icons[category];
         entry[6] = form.elements.group.value.trim();
+        const previousActivity = addActivity("updated", category, entry);
         if (!persist()) {
           [entry[0], entry[1], entry[2], entry[3], entry[6]] = previousValues;
+          state.activity = previousActivity;
           return;
         }
+        renderActivity();
         closeModal();
         if (category === "places") renderMap();
         if (!document.getElementById("entry-detail-view").hidden) {
@@ -1283,7 +1352,7 @@ const defaults = {
         event.preventDefault();
         const form = new FormData(event.currentTarget);
         const summary = form.get("description").trim();
-        state[category].unshift([
+        const newEntry = [
           form.get("name").trim(),
           form.get("icon").trim() || icons[category],
           summary,
@@ -1295,12 +1364,16 @@ const defaults = {
           null,
           createWorldId(),
           []
-        ]);
+        ];
+        state[category].unshift(newEntry);
+        const previousActivity = addActivity("added", category, newEntry);
         if (!persist()) {
           state[category].shift();
+          state.activity = previousActivity;
           return;
         }
         updateCounts();
+        renderActivity();
         closeModal();
         if (category === "places") renderMap();
         if (activeView !== "overview") renderCollection();
@@ -1320,7 +1393,6 @@ const defaults = {
       event.currentTarget.setAttribute("aria-pressed", String(isTimelineView));
       renderCollection();
     });
-    document.getElementById("quick-add").addEventListener("click", () => openModal());
     document.getElementById("add-entry").addEventListener("click", () => openModal());
     document.getElementById("add-first-place").addEventListener("click", () => openModal("places"));
     document.getElementById("map-image-upload").addEventListener("change", async event => {
@@ -1588,4 +1660,5 @@ const defaults = {
     // Set the initial counts from the loaded local world.
     renderWorlds();
     updateCounts();
+    renderActivity();
     renderMap();
