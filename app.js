@@ -63,24 +63,29 @@ const defaults = {
     // Normalize stored collections so older saves safely gain newer categories.
     function normalizeData(data) {
       const source = data && typeof data === "object" ? data : {};
-      return Object.fromEntries(
-        Object.keys(defaults).map(key => [
-          key,
-          Array.isArray(source[key])
-            ? source[key].filter(Array.isArray).map(entry => [
-              entry[0] || "",
-              entry[1] || meta[key][3],
-              entry[2] || "",
-              entry[3] || meta[key][4],
-              typeof entry[4] === "string" ? entry[4] : entry[2] || "",
-              Array.isArray(entry[5]) ? entry[5].filter(image => typeof image === "string" && image.startsWith("data:image/")) : [],
-              typeof entry[6] === "string" ? entry[6] : "",
-              Number.isFinite(entry[7]) && entry[7] >= 0 && entry[7] <= 100 ? entry[7] : null,
-              Number.isFinite(entry[8]) && entry[8] >= 0 && entry[8] <= 100 ? entry[8] : null
-            ])
-            : []
-        ])
-      );
+      return {
+        ...Object.fromEntries(
+          Object.keys(defaults).map(key => [
+            key,
+            Array.isArray(source[key])
+              ? source[key].filter(Array.isArray).map(entry => [
+                entry[0] || "",
+                entry[1] || meta[key][3],
+                entry[2] || "",
+                entry[3] || meta[key][4],
+                typeof entry[4] === "string" ? entry[4] : entry[2] || "",
+                Array.isArray(entry[5]) ? entry[5].filter(image => typeof image === "string" && image.startsWith("data:image/")) : [],
+                typeof entry[6] === "string" ? entry[6] : "",
+                Number.isFinite(entry[7]) && entry[7] >= 0 && entry[7] <= 100 ? entry[7] : null,
+                Number.isFinite(entry[8]) && entry[8] >= 0 && entry[8] <= 100 ? entry[8] : null
+              ])
+              : []
+          ])
+        ),
+        mapImage: typeof source.mapImage === "string" && source.mapImage.startsWith("data:image/")
+          ? source.mapImage
+          : ""
+      };
     }
 
     function createWorldId() {
@@ -123,12 +128,19 @@ const defaults = {
 
     function renderMap() {
       const map = document.getElementById("world-map");
+      const mapContent = document.getElementById("map-content");
       const places = state.places;
-      map.querySelectorAll(".map-marker").forEach(marker => marker.remove());
+      mapContent.style.backgroundImage = state.mapImage
+        ? `linear-gradient(#0002, #0002), url("${state.mapImage}")`
+        : "";
+      mapContent.classList.toggle("has-custom-map-image", Boolean(state.mapImage));
+      mapContent.querySelectorAll(".map-marker").forEach(marker => marker.remove());
       const placedPlaces = places
         .map((entry, index) => ({ entry, index }))
         .filter(({ entry }) => Number.isFinite(entry[7]) && Number.isFinite(entry[8]));
-      map.querySelector(".map-empty").hidden = placedPlaces.length > 0;
+      map.querySelector(".map-empty").hidden = placedPlaces.length > 0 || Boolean(state.mapImage);
+      document.getElementById("map-image-upload-label").textContent = state.mapImage ? "Change map image" : "Upload map image";
+      document.getElementById("remove-map-image").hidden = !state.mapImage;
       document.getElementById("map-help").textContent = places.length
         ? `${placedPlaces.length} marked · ${places.length - placedPlaces.length} not placed`
         : "Add places and mark their locations on your map.";
@@ -139,8 +151,8 @@ const defaults = {
       placeButton.textContent = isPlacingMapMarker ? "Cancel placement" : "Place on map";
       map.tabIndex = isPlacingMapMarker ? 0 : -1;
       map.setAttribute("aria-label", isPlacingMapMarker
-        ? "World map. Click or focus and press Enter to choose a location."
-        : "World map. Choose Place on map, then click to position a place.");
+        ? "World map. Use zoom controls to zoom in or out; enlarge and drag to pan. Click or focus and press Enter to choose a location."
+        : "World map. Use zoom controls to zoom in or out; enlarge and drag to pan. Choose Place on map, then click to position a place.");
       placedPlaces.forEach(({ entry, index }) => {
         const marker = document.createElement("button");
         marker.type = "button";
@@ -161,7 +173,7 @@ const defaults = {
             openEntryDetails("places", index);
           }
         });
-        map.append(marker);
+        mapContent.append(marker);
       });
       map.classList.toggle("placing", isPlacingMapMarker);
     }
@@ -570,6 +582,32 @@ const defaults = {
         showToast(error.message || "Couldn't add the selected images.");
       }
     }
+    async function uploadMapImage(file) {
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        showToast(`${file.name} is not an image.`);
+        return;
+      }
+      if (file.size > 15 * 1024 * 1024) {
+        showToast(`${file.name} is larger than the 15 MB upload limit.`);
+        return;
+      }
+      const targetState = state;
+      const previousMapImage = targetState.mapImage;
+      try {
+        targetState.mapImage = await optimizeImage(file);
+        if (!persist()) {
+          targetState.mapImage = previousMapImage;
+          return;
+        }
+        if (state === targetState) renderMap();
+        showToast("Map image uploaded.");
+      } catch (error) {
+        targetState.mapImage = previousMapImage;
+        console.error("Unable to upload map image.", error);
+        showToast(error.message || "Couldn't upload the map image.");
+      }
+    }
     // Confirm destructive changes before removing an entry from its category.
     function openDeleteConfirmation(category, entryIndex) {
       const entry = state[category][entryIndex];
@@ -699,6 +737,22 @@ const defaults = {
     document.getElementById("quick-add").addEventListener("click", () => openModal());
     document.getElementById("add-entry").addEventListener("click", () => openModal());
     document.getElementById("add-first-place").addEventListener("click", () => openModal("places"));
+    document.getElementById("map-image-upload").addEventListener("change", async event => {
+      const input = event.currentTarget;
+      const file = input.files[0];
+      input.value = "";
+      await uploadMapImage(file);
+    });
+    document.getElementById("remove-map-image").addEventListener("click", () => {
+      const previousMapImage = state.mapImage;
+      state.mapImage = "";
+      if (!persist()) {
+        state.mapImage = previousMapImage;
+        return;
+      }
+      renderMap();
+      showToast("Map image removed.");
+    });
     document.getElementById("place-on-map").addEventListener("click", () => {
       isPlacingMapMarker = !isPlacingMapMarker;
       renderMap();
@@ -707,19 +761,115 @@ const defaults = {
         showToast("Click the map where you want to place a marker.");
       }
     });
-    function chooseMapLocation(event) {
-      if (!isPlacingMapMarker) return;
-      const map = event.currentTarget;
-      const bounds = map.getBoundingClientRect();
-      const x = Math.max(5, Math.min(95, ((event.clientX - bounds.left) / bounds.width) * 100));
-      const y = Math.max(8, Math.min(92, ((event.clientY - bounds.top) / bounds.height) * 100));
+    function placeMapLocationAt(clientX, clientY) {
+      const bounds = document.getElementById("map-content").getBoundingClientRect();
+      const x = Math.max(5, Math.min(95, ((clientX - bounds.left) / bounds.width) * 100));
+      const y = Math.max(8, Math.min(92, ((clientY - bounds.top) / bounds.height) * 100));
       openPlacePlacementModal(x, y);
     }
-    document.getElementById("world-map").addEventListener("click", chooseMapLocation);
-    document.getElementById("world-map").addEventListener("keydown", event => {
+    function chooseMapLocation(event) {
+      if (isPlacingMapMarker) placeMapLocationAt(event.clientX, event.clientY);
+    }
+    const worldMap = document.getElementById("world-map");
+    let mapDrag;
+    let suppressMapClick = false;
+    worldMap.addEventListener("pointerdown", event => {
+      if (event.button !== 0 || event.target.closest(".map-marker, .map-zoom-controls")) return;
+      const currentPanX = Number.parseFloat(mapContent.style.getPropertyValue("--map-pan-x")) || 0;
+      const currentPanY = Number.parseFloat(mapContent.style.getPropertyValue("--map-pan-y")) || 0;
+      mapDrag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, panX: currentPanX, panY: currentPanY, moved: false };
+      worldMap.setPointerCapture(event.pointerId);
+    });
+    worldMap.addEventListener("pointermove", event => {
+      if (!mapDrag || mapDrag.pointerId !== event.pointerId) return;
+      const deltaX = event.clientX - mapDrag.startX;
+      const deltaY = event.clientY - mapDrag.startY;
+      if (!mapDrag.moved && Math.hypot(deltaX, deltaY) < 4) return;
+      mapDrag.moved = true;
+      mapContent.classList.add("is-dragging");
+      const { maxPanX, maxPanY } = getMapPanLimits();
+      const panX = Math.max(-maxPanX, Math.min(maxPanX, mapDrag.panX + deltaX));
+      const panY = Math.max(-maxPanY, Math.min(maxPanY, mapDrag.panY + deltaY));
+      mapContent.style.setProperty("--map-pan-x", `${panX}px`);
+      mapContent.style.setProperty("--map-pan-y", `${panY}px`);
+    });
+    window.addEventListener("resize", clampMapPan);
+    function finishMapDrag(event) {
+      if (!mapDrag || mapDrag.pointerId !== event.pointerId) return;
+      if (mapDrag.moved) {
+        suppressMapClick = true;
+        setTimeout(() => { suppressMapClick = false; }, 0);
+      }
+      mapContent.classList.remove("is-dragging");
+      mapDrag = null;
+    }
+    worldMap.addEventListener("pointerup", finishMapDrag);
+    worldMap.addEventListener("pointercancel", finishMapDrag);
+    worldMap.addEventListener("click", event => {
+      if (!suppressMapClick) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }, true);
+    worldMap.addEventListener("click", chooseMapLocation);
+    worldMap.addEventListener("keydown", event => {
       if (event.target !== event.currentTarget || !isPlacingMapMarker || !["Enter", " "].includes(event.key)) return;
       event.preventDefault();
-      openPlacePlacementModal(50, 50);
+      const bounds = worldMap.getBoundingClientRect();
+      placeMapLocationAt(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+    });
+    const mapWrap = document.getElementById("map-wrap");
+    const mapExpandButton = document.getElementById("map-expand");
+    const mapContent = document.getElementById("map-content");
+    const mapZoomLevel = document.getElementById("map-zoom-level");
+    const minMapZoom = 0.25;
+    const initialMapZoom = 1;
+    const maxMapZoom = 3;
+    const mapZoomStep = 0.25;
+    function getMapZoom() {
+      return Number.parseFloat(mapContent.style.getPropertyValue("--map-zoom")) || minMapZoom;
+    }
+    function getMapPanLimits() {
+      const bounds = worldMap.getBoundingClientRect();
+      return {
+        maxPanX: Math.max(0, bounds.width * (1.6 * getMapZoom() - 1) / 2),
+        maxPanY: Math.max(0, bounds.height * (1.6 * getMapZoom() - 1) / 2)
+      };
+    }
+    function clampMapPan() {
+      const { maxPanX, maxPanY } = getMapPanLimits();
+      const panX = Number.parseFloat(mapContent.style.getPropertyValue("--map-pan-x")) || 0;
+      const panY = Number.parseFloat(mapContent.style.getPropertyValue("--map-pan-y")) || 0;
+      mapContent.style.setProperty("--map-pan-x", `${Math.max(-maxPanX, Math.min(maxPanX, panX))}px`);
+      mapContent.style.setProperty("--map-pan-y", `${Math.max(-maxPanY, Math.min(maxPanY, panY))}px`);
+    }
+    function setMapExpanded(isExpanded) {
+      mapWrap.classList.toggle("is-expanded", isExpanded);
+      document.body.classList.toggle("map-expanded", isExpanded);
+      mapExpandButton.setAttribute("aria-pressed", String(isExpanded));
+      mapExpandButton.textContent = isExpanded ? "× Close map" : "⛶ Enlarge map";
+      clampMapPan();
+      if (!isExpanded) mapExpandButton.focus();
+    }
+    function setMapZoom(zoom) {
+      const nextZoom = Math.max(minMapZoom, Math.min(maxMapZoom, zoom));
+      mapContent.style.setProperty("--map-zoom", String(nextZoom));
+      mapZoomLevel.value = `${Math.round(nextZoom * 100)}%`;
+      mapZoomLevel.textContent = mapZoomLevel.value;
+      document.getElementById("map-zoom-out").disabled = nextZoom <= minMapZoom;
+      document.getElementById("map-zoom-in").disabled = nextZoom >= maxMapZoom;
+      clampMapPan();
+    }
+    document.getElementById("map-zoom-in").addEventListener("click", event => {
+      event.stopPropagation();
+      setMapZoom(getMapZoom() + mapZoomStep);
+    });
+    document.getElementById("map-zoom-out").addEventListener("click", event => {
+      event.stopPropagation();
+      setMapZoom(getMapZoom() - mapZoomStep);
+    });
+    setMapZoom(initialMapZoom);
+    mapExpandButton.addEventListener("click", () => {
+      setMapExpanded(!mapWrap.classList.contains("is-expanded"));
     });
     document.querySelectorAll("[data-create-category]").forEach(button => {
       button.addEventListener("click", () => openModal(button.dataset.createCategory));
@@ -748,6 +898,7 @@ const defaults = {
       if (event.key === "Escape") {
         closeModal();
         closeWorldMenu();
+        if (mapWrap.classList.contains("is-expanded")) setMapExpanded(false);
       }
     });
     // Set the initial counts from the loaded local world.

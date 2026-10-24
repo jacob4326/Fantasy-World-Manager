@@ -48,9 +48,16 @@
           </div>
           <div class="dashboard-grid">
             <section class="panel">
-              <div class="panel-head map-panel-head"><div><h2>World atlas</h2><p id="map-help">Add places and mark their locations on your map.</p></div><div class="map-actions"><button class="secondary" id="place-on-map" type="button" aria-pressed="false">Place on map</button><button class="text-button" id="add-first-place">＋ Add a place</button></div></div>
-              <div class="map-wrap"><div class="map" id="world-map" role="group" tabindex="-1" aria-label="World map. Choose Place on map, then click to position a place.">
-                <div class="map-empty"><span>✧</span><strong>Your map is waiting</strong><small>Add a place to begin charting your world.</small></div>
+              <div class="panel-head map-panel-head"><div><h2>World atlas</h2><p id="map-help">Add places and mark their locations on your map.</p></div><div class="map-actions"><button class="secondary" id="place-on-map" type="button" aria-pressed="false">Place on map</button><label class="secondary map-image-upload"><span id="map-image-upload-label">Upload map image</span><input id="map-image-upload" type="file" accept="image/*"></label><button class="secondary" id="remove-map-image" type="button" hidden>Remove map image</button><button class="text-button" id="add-first-place">＋ Add a place</button></div></div>
+              <div class="map-wrap" id="map-wrap"><button class="secondary map-expand" id="map-expand" type="button" aria-pressed="false">⛶ Enlarge map</button><div class="map" id="world-map" role="group" tabindex="-1" aria-label="World map. Use zoom controls to zoom in or out; enlarge and drag to pan. Choose Place on map, then click to position a place.">
+                <div class="map-content" id="map-content">
+                  <div class="map-empty"><span>✧</span><strong>Your map is waiting</strong><small>Add a place to begin charting your world.</small></div>
+                </div>
+                <div class="map-zoom-controls" role="group" aria-label="Map zoom controls">
+                  <button type="button" id="map-zoom-in" aria-label="Zoom in" title="Zoom in">+</button>
+                  <output id="map-zoom-level" aria-live="polite">100%</output>
+                  <button type="button" id="map-zoom-out" aria-label="Zoom out" title="Zoom out">−</button>
+                </div>
               </div></div>
             </section>
             <section class="panel">
