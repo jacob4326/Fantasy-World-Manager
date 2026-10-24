@@ -182,7 +182,7 @@
     body.saved-map-expanded { overflow: hidden; }
     .saved-map-viewer.is-placing { cursor: crosshair; }
     .saved-map-content { position: absolute; inset: 0; display: grid; place-items: center; transform: translate(var(--saved-map-pan-x, 0px), var(--saved-map-pan-y, 0px)) scale(var(--saved-map-zoom, 1)); transform-origin: center; cursor: grab; }
-    .saved-map-content img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+    .saved-map-content img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
     .saved-map-content.is-dragging { cursor: grabbing; }
     .saved-map-empty { margin: 0; padding: 20px; color: var(--muted); font-size: 11px; text-align: center; }
     .saved-map-actions { position: absolute; z-index: 5; top: 10px; left: 10px; display: flex; gap: 7px; }
