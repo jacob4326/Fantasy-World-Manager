@@ -1,5 +1,6 @@
 // Empty collections define the starter world; saved entries are loaded below.
 const defaults = {
+      maps: [],
       places: [],
       characters: [],
       factions: [],
@@ -7,13 +8,14 @@ const defaults = {
       timeline: []
     };
     const meta = {
+      maps: ["Maps","Regions, territories, and districts that anchor your world.","All maps","▣","Map"],
       places: ["Places","Landmarks, regions, and hidden corners of your world.","All places","⌖","Place"],
       characters: ["Characters","Heroes, rivals, and everyone caught in between.","All characters","♙","Character"],
       factions: ["Factions","Orders, kingdoms, and powers shaping the realms.","All factions","⚑","Faction"],
       items: ["Items","Artifacts, tools, treasures, and objects from your world.","All items","✧","Item"],
       timeline: ["Timeline","The moments that changed the course of history.","All events","◷","Event"]
     };
-    const icons = { places: "✦", characters: "♙", factions: "⚑", items: "✧", timeline: "◷" };
+    const icons = { maps: "▣", places: "✦", characters: "♙", factions: "⚑", items: "✧", timeline: "◷" };
     // Each world stores its own independent collections.
     const worldStorageKey = "mythos-worlds";
     const legacyStorageKey = "mythos-world-data";
@@ -867,6 +869,12 @@ const defaults = {
       event.stopPropagation();
       setMapZoom(getMapZoom() - mapZoomStep);
     });
+    worldMap.addEventListener("wheel", event => {
+      if (event.target.closest(".map-marker, .map-zoom-controls")) return;
+      event.preventDefault();
+      const zoomDirection = event.deltaY > 0 ? -1 : 1;
+      setMapZoom(getMapZoom() + zoomDirection * mapZoomStep);
+    }, { passive: false });
     setMapZoom(initialMapZoom);
     mapExpandButton.addEventListener("click", () => {
       setMapExpanded(!mapWrap.classList.contains("is-expanded"));
