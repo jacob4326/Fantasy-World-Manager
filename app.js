@@ -1032,7 +1032,7 @@ const defaults = {
       const root = document.getElementById("modal-root");
       root.innerHTML = `<div class="modal-backdrop"><form class="modal" id="edit-entry-form"><div class="modal-head"><h2>Edit ${type.toLowerCase()}</h2><button class="close" type="button" aria-label="Close">×</button></div>
         <label class="field">Name<input name="name" maxlength="60" required></label>
-        <label class="field">Description<textarea name="description" maxlength="240" required></textarea></label>
+        <label class="field">Summary<textarea name="description" maxlength="240" required></textarea></label>
         <label class="field">${category === "timeline" ? "Date · Era" : "Type · Region"}<input name="detail" maxlength="60"></label>
         <label class="field">Icon<input name="icon" maxlength="8" placeholder="Emoji or symbol" aria-describedby="icon-help"><small id="icon-help">Use an emoji or symbol to personalize this entry.</small></label>
         <label class="field">Group<input name="group" maxlength="40" placeholder="e.g. Royal family"></label>
@@ -1079,7 +1079,7 @@ const defaults = {
       const root = document.getElementById("modal-root");
       root.innerHTML = `<div class="modal-backdrop"><form class="modal" id="entry-form"><div class="modal-head"><h2>Create ${type.toLowerCase()}</h2><button class="close" type="button" aria-label="Close">×</button></div>
         <label class="field">Name<input name="name" maxlength="60" required placeholder="Give it a name"></label>
-        <label class="field">Description<textarea name="description" maxlength="240" required placeholder="What should the world know?"></textarea></label>
+        <label class="field">Summary<textarea name="description" maxlength="240" required placeholder="What should the world know?"></textarea></label>
         <label class="field">${category === "timeline" ? "Date · Era" : "Type · Region"}<input name="detail" maxlength="60" placeholder="${category === "timeline" ? "Year 2400 · Third Age" : "e.g. Settlement · Northern Marches"}"></label>
         <label class="field">Icon<input name="icon" maxlength="8" placeholder="Emoji or symbol" aria-describedby="icon-help"><small id="icon-help">Use an emoji or symbol to personalize this entry.</small></label>
         <label class="field">Group<input name="group" maxlength="40" placeholder="e.g. Royal family"></label>
