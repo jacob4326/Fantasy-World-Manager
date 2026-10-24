@@ -5,17 +5,21 @@ const defaults = {
       characters: [],
       factions: [],
       items: [],
+      creatures: [],
+      monsters: [],
       timeline: []
     };
     const meta = {
-      maps: ["Maps","Regions, territories, and districts that anchor your world.","All maps","▣","Map"],
+      maps: ["Maps","Create maps for your world, then scroll to zoom and drag to explore each one.","All maps","▣","Map"],
       places: ["Places","Landmarks, regions, and hidden corners of your world.","All places","⌖","Place"],
       characters: ["Characters","Heroes, rivals, and everyone caught in between.","All characters","♙","Character"],
       factions: ["Factions","Orders, kingdoms, and powers shaping the realms.","All factions","⚑","Faction"],
       items: ["Items","Artifacts, tools, treasures, and objects from your world.","All items","✧","Item"],
+      creatures: ["Creatures","Beasts, wildlife, and wondrous living things across your world.","All creatures","♞","Creature"],
+      monsters: ["Monsters","Terrifying foes, legendary threats, and creatures of the dark.","All monsters","☠","Monster"],
       timeline: ["Timeline","The moments that changed the course of history.","All events","◷","Event"]
     };
-    const icons = { maps: "▣", places: "✦", characters: "♙", factions: "⚑", items: "✧", timeline: "◷" };
+    const icons = { maps: "▣", places: "✦", characters: "♙", factions: "⚑", items: "✧", creatures: "♞", monsters: "☠", timeline: "◷" };
     // Each world stores its own independent collections.
     const worldStorageKey = "mythos-worlds";
     const legacyStorageKey = "mythos-world-data";
@@ -79,7 +83,16 @@ const defaults = {
                 Array.isArray(entry[5]) ? entry[5].filter(image => typeof image === "string" && image.startsWith("data:image/")) : [],
                 typeof entry[6] === "string" ? entry[6] : "",
                 Number.isFinite(entry[7]) && entry[7] >= 0 && entry[7] <= 100 ? entry[7] : null,
-                Number.isFinite(entry[8]) && entry[8] >= 0 && entry[8] <= 100 ? entry[8] : null
+                Number.isFinite(entry[8]) && entry[8] >= 0 && entry[8] <= 100 ? entry[8] : null,
+                typeof entry[9] === "string" ? entry[9] : createWorldId(),
+                key === "maps" && Array.isArray(entry[10])
+                  ? entry[10].filter(marker =>
+                    marker
+                    && typeof marker.placeId === "string"
+                    && Number.isFinite(marker.x) && marker.x >= 0 && marker.x <= 100
+                    && Number.isFinite(marker.y) && marker.y >= 0 && marker.y <= 100
+                  ).map(marker => ({ placeId: marker.placeId, x: marker.x, y: marker.y }))
+                  : []
               ])
               : []
           ])
@@ -107,6 +120,38 @@ const defaults = {
         console.error("Unable to save worlds.", error);
         showToast("Couldn't save changes in this browser.");
         return false;
+      }
+    }
+    async function uploadEntryMapImage(entry, file) {
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        showToast(`${file.name} is not an image.`);
+        return;
+      }
+      if (file.size > 15 * 1024 * 1024) {
+        showToast(`${file.name} is larger than the 15 MB upload limit.`);
+        return;
+      }
+      const targetState = state;
+      const previousImages = entry[5] || [];
+      try {
+        const mapImage = await optimizeImage(file);
+        if (state !== targetState || !targetState.maps.includes(entry)) {
+          showToast("The world changed before the map finished uploading. Please try again.");
+          return;
+        }
+        entry[5] = previousImages.length
+          ? [mapImage, ...previousImages.slice(1)]
+          : [mapImage];
+        if (!persist()) {
+          entry[5] = previousImages;
+          return;
+        }
+        renderCollection();
+        showToast(`Map image ${previousImages.length ? "updated" : "uploaded"}.`);
+      } catch (error) {
+        console.error("Unable to upload map image.", error);
+        showToast(error.message || "Couldn't upload the map image.");
       }
     }
     // Give the user short-lived feedback after important actions or storage errors.
@@ -261,6 +306,7 @@ const defaults = {
     function switchWorld(worldId) {
       const selectedWorld = worlds.find(world => world.id === worldId);
       if (!selectedWorld) return;
+      closeExpandedSavedMaps();
       activeWorldId = selectedWorld.id;
       state = selectedWorld.data;
       persist();
@@ -350,7 +396,17 @@ const defaults = {
       nameInput.select();
     }
     // Switch between the overview and a searchable category collection.
+    function closeExpandedSavedMaps() {
+      document.querySelectorAll(".saved-map-viewer.is-expanded").forEach(viewer => {
+        viewer.classList.remove("is-expanded");
+        const button = viewer.querySelector(".saved-map-expand");
+        button.setAttribute("aria-pressed", "false");
+        button.textContent = "⛶ Enlarge map";
+      });
+      document.body.classList.remove("saved-map-expanded");
+    }
     function openView(view) {
+      closeExpandedSavedMaps();
       activeView = view;
       document.querySelectorAll(".nav button").forEach(button => button.classList.toggle("active", button.dataset.view === view));
       const isOverview = view === "overview";
@@ -399,6 +455,10 @@ const defaults = {
         return;
       }
       filtered.forEach(({ entry, index: entryIndex }) => {
+        if (activeView === "maps") {
+          renderMapCard(target, entry, entryIndex);
+          return;
+        }
         const card = document.createElement("article");
         card.className = "panel entry-card";
         const openButton = document.createElement("button");
@@ -454,6 +514,285 @@ const defaults = {
       });
     }
 
+    function renderMapCard(target, entry, entryIndex) {
+      const card = document.createElement("article");
+      card.className = "panel map-entry-card";
+      const heading = document.createElement("div");
+      heading.className = "map-entry-heading";
+      const title = document.createElement("h3");
+      title.textContent = entry[0];
+      const description = document.createElement("p");
+      description.textContent = entry[2] || entry[3];
+      heading.append(title, description);
+
+      const menu = document.createElement("details");
+      menu.className = "entry-menu";
+      const menuButton = document.createElement("summary");
+      menuButton.textContent = "⋯";
+      menuButton.setAttribute("aria-label", `More options for ${entry[0]}`);
+      const menuOptions = document.createElement("div");
+      menuOptions.className = "entry-menu-options";
+      const editButton = document.createElement("button");
+      editButton.className = "edit-entry";
+      editButton.type = "button";
+      editButton.textContent = "Edit";
+      editButton.addEventListener("click", () => {
+        menu.open = false;
+        openEditEntry("maps", entryIndex);
+      });
+      const removeButton = document.createElement("button");
+      removeButton.className = "remove-entry";
+      removeButton.type = "button";
+      removeButton.textContent = "Remove";
+      removeButton.addEventListener("click", () => {
+        menu.open = false;
+        openDeleteConfirmation("maps", entryIndex);
+      });
+      menuOptions.append(editButton, removeButton);
+      menu.append(menuButton, menuOptions);
+      card.append(heading, menu);
+
+      const viewer = document.createElement("div");
+      viewer.className = "saved-map-viewer";
+      viewer.tabIndex = 0;
+      viewer.setAttribute("role", "group");
+      viewer.setAttribute("aria-label", `${entry[0]} interactive map. Use the mouse wheel to zoom, drag to pan, and place saved places.`);
+      const mapContent = document.createElement("div");
+      mapContent.className = "saved-map-content";
+      const mapImage = entry[5]?.[0];
+      let imageElement;
+      if (mapImage) {
+        imageElement = document.createElement("img");
+        imageElement.src = mapImage;
+        imageElement.alt = `${entry[0]} map`;
+        imageElement.draggable = false;
+        mapContent.append(imageElement);
+      } else {
+        const empty = document.createElement("p");
+        empty.className = "saved-map-empty";
+        empty.textContent = "Upload a map image to start exploring.";
+        mapContent.append(empty);
+      }
+      viewer.append(mapContent);
+
+      const mapActions = document.createElement("div");
+      mapActions.className = "saved-map-actions";
+      const placeButton = document.createElement("button");
+      placeButton.className = "secondary saved-map-place";
+      placeButton.type = "button";
+      placeButton.textContent = "Place on map";
+      placeButton.disabled = !mapImage || state.places.length === 0;
+      placeButton.setAttribute("aria-pressed", "false");
+      placeButton.title = !mapImage
+        ? "Upload a map image before placing places."
+        : state.places.length === 0 ? "Add a place before placing it on this map." : "Choose a place to add to this map.";
+      const expandButton = document.createElement("button");
+      expandButton.className = "secondary saved-map-expand";
+      expandButton.type = "button";
+      expandButton.textContent = "⛶ Enlarge map";
+      expandButton.setAttribute("aria-pressed", "false");
+      mapActions.append(placeButton, expandButton);
+      viewer.append(mapActions);
+
+      const zoomControls = document.createElement("div");
+      zoomControls.className = "map-zoom-controls";
+      zoomControls.setAttribute("role", "group");
+      zoomControls.setAttribute("aria-label", `${entry[0]} zoom controls`);
+      const zoomIn = document.createElement("button");
+      zoomIn.type = "button";
+      zoomIn.setAttribute("aria-label", "Zoom in");
+      zoomIn.title = "Zoom in";
+      zoomIn.textContent = "+";
+      const zoomLevel = document.createElement("output");
+      zoomLevel.textContent = "100%";
+      const zoomOut = document.createElement("button");
+      zoomOut.type = "button";
+      zoomOut.setAttribute("aria-label", "Zoom out");
+      zoomOut.title = "Zoom out";
+      zoomOut.textContent = "−";
+      zoomControls.append(zoomIn, zoomLevel, zoomOut);
+      viewer.append(zoomControls);
+      card.append(viewer);
+
+      const uploadLabel = document.createElement("label");
+      uploadLabel.className = "secondary map-card-upload";
+      const uploadText = document.createElement("span");
+      uploadText.textContent = mapImage ? "Change map image" : "Upload map image";
+      const uploadInput = document.createElement("input");
+      uploadInput.type = "file";
+      uploadInput.accept = "image/*";
+      uploadInput.setAttribute("aria-label", `${mapImage ? "Change" : "Upload"} image for ${entry[0]}`);
+      uploadInput.addEventListener("change", async () => {
+        const [file] = uploadInput.files || [];
+        uploadInput.value = "";
+        await uploadEntryMapImage(entry, file);
+      });
+      uploadLabel.append(uploadText, uploadInput);
+      card.append(uploadLabel);
+
+      let zoom = 1;
+      let panX = 0;
+      let panY = 0;
+      let drag;
+      const minZoom = 0.5;
+      const maxZoom = 4;
+      const zoomStep = 0.25;
+      let isPlacingPlace = false;
+      let suppressMapClick = false;
+      let hasDragged = false;
+      const imageFrame = () => {
+        const width = mapContent.clientWidth;
+        const height = mapContent.clientHeight;
+        const aspectRatio = imageElement.naturalWidth / imageElement.naturalHeight;
+        const imageWidth = Math.min(width, height * aspectRatio);
+        const imageHeight = Math.min(height, width / aspectRatio);
+        return {
+          left: (width - imageWidth) / 2,
+          top: (height - imageHeight) / 2,
+          width: imageWidth,
+          height: imageHeight
+        };
+      };
+      const renderMarkers = () => {
+        mapContent.querySelectorAll(".saved-map-marker").forEach(marker => marker.remove());
+        if (!imageElement?.naturalWidth) return;
+        const frame = imageFrame();
+        (entry[10] || []).forEach(placement => {
+          const placeIndex = state.places.findIndex(place => place[9] === placement.placeId);
+          if (placeIndex < 0) return;
+          const place = state.places[placeIndex];
+          const marker = document.createElement("button");
+          marker.className = "saved-map-marker";
+          marker.type = "button";
+          marker.style.left = `${frame.left + frame.width * placement.x / 100}px`;
+          marker.style.top = `${frame.top + frame.height * placement.y / 100}px`;
+          marker.textContent = place[1];
+          marker.title = place[0];
+          marker.setAttribute("aria-label", `${place[0]} on ${entry[0]}`);
+          marker.addEventListener("click", event => {
+            event.stopPropagation();
+            if (isPlacingPlace) {
+              placeAt(event.clientX, event.clientY);
+              return;
+            }
+            openView("places");
+            openEntryDetails("places", placeIndex);
+          });
+          mapContent.append(marker);
+        });
+      };
+      const placeAt = (clientX, clientY) => {
+        if (!imageElement?.naturalWidth) return;
+        const bounds = viewer.getBoundingClientRect();
+        const localX = (clientX - bounds.left - bounds.width / 2 - panX) / zoom + bounds.width / 2;
+        const localY = (clientY - bounds.top - bounds.height / 2 - panY) / zoom + bounds.height / 2;
+        const frame = imageFrame();
+        if (localX < frame.left || localX > frame.left + frame.width || localY < frame.top || localY > frame.top + frame.height) return;
+        const x = ((localX - frame.left) / frame.width) * 100;
+        const y = ((localY - frame.top) / frame.height) * 100;
+        openMapPlaceModal(entry, x, y);
+      };
+      placeButton.addEventListener("click", () => {
+        if (!state.places.length) {
+          showToast("Add a place before placing it on this map.");
+          return;
+        }
+        if (!mapImage) {
+          showToast("Upload a map image before placing places.");
+          return;
+        }
+        isPlacingPlace = !isPlacingPlace;
+        placeButton.textContent = isPlacingPlace ? "Cancel placement" : "Place on map";
+        placeButton.setAttribute("aria-pressed", String(isPlacingPlace));
+        viewer.classList.toggle("is-placing", isPlacingPlace);
+        if (isPlacingPlace) showToast("Click the map where you want to place it.");
+      });
+      expandButton.addEventListener("click", () => {
+        const isExpanded = viewer.classList.toggle("is-expanded");
+        document.body.classList.toggle("saved-map-expanded", isExpanded);
+        expandButton.setAttribute("aria-pressed", String(isExpanded));
+        expandButton.textContent = isExpanded ? "× Close map" : "⛶ Enlarge map";
+        if (isExpanded) viewer.focus();
+      });
+      viewer.addEventListener("click", event => {
+        if (suppressMapClick) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          return;
+        }
+        if (isPlacingPlace && !event.target.closest(".saved-map-actions, .map-zoom-controls, .saved-map-marker")) {
+          placeAt(event.clientX, event.clientY);
+        }
+      });
+      if (imageElement) imageElement.addEventListener("load", renderMarkers);
+
+      const clampPan = () => {
+        const bounds = viewer.getBoundingClientRect();
+        const maxPanX = Math.max(0, bounds.width * (zoom - 1) / 2);
+        const maxPanY = Math.max(0, bounds.height * (zoom - 1) / 2);
+        panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
+        panY = Math.max(-maxPanY, Math.min(maxPanY, panY));
+        mapContent.style.setProperty("--saved-map-pan-x", `${panX}px`);
+        mapContent.style.setProperty("--saved-map-pan-y", `${panY}px`);
+        renderMarkers();
+      };
+      const setZoom = value => {
+        zoom = Math.max(minZoom, Math.min(maxZoom, value));
+        mapContent.style.setProperty("--saved-map-zoom", String(zoom));
+        zoomLevel.textContent = `${Math.round(zoom * 100)}%`;
+        zoomOut.disabled = !mapImage || zoom <= minZoom;
+        zoomIn.disabled = !mapImage || zoom >= maxZoom;
+        clampPan();
+      };
+      zoomIn.addEventListener("click", event => {
+        event.stopPropagation();
+        setZoom(zoom + zoomStep);
+      });
+      zoomOut.addEventListener("click", event => {
+        event.stopPropagation();
+        setZoom(zoom - zoomStep);
+      });
+      viewer.addEventListener("wheel", event => {
+        if (!mapImage || event.target.closest(".map-zoom-controls")) return;
+        event.preventDefault();
+        setZoom(zoom + (event.deltaY > 0 ? -zoomStep : zoomStep));
+      }, { passive: false });
+      viewer.addEventListener("dragstart", event => event.preventDefault());
+      viewer.addEventListener("pointerdown", event => {
+        if (!mapImage || event.button !== 0 || event.target.closest("button, label")) return;
+        event.preventDefault();
+        hasDragged = false;
+        drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, panX, panY };
+        viewer.setPointerCapture(event.pointerId);
+      });
+      viewer.addEventListener("pointermove", event => {
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        event.preventDefault();
+        const deltaX = event.clientX - drag.startX;
+        const deltaY = event.clientY - drag.startY;
+        if (!hasDragged && Math.hypot(deltaX, deltaY) < 4) return;
+        hasDragged = true;
+        panX = drag.panX + deltaX;
+        panY = drag.panY + deltaY;
+        clampPan();
+        mapContent.classList.add("is-dragging");
+      });
+      const finishDrag = event => {
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        if (hasDragged) {
+          suppressMapClick = true;
+          setTimeout(() => { suppressMapClick = false; }, 0);
+        }
+        drag = null;
+        mapContent.classList.remove("is-dragging");
+      };
+      viewer.addEventListener("pointerup", finishDrag);
+      viewer.addEventListener("pointercancel", finishDrag);
+      target.append(card);
+      setZoom(1);
+      renderMarkers();
+    }
+
     // Show a dedicated page for one place, character, faction, item, or event.
     function openEntryDetails(category, entryIndex) {
       const entry = state[category][entryIndex];
@@ -480,6 +819,45 @@ const defaults = {
         showToast("Description saved.");
       };
       document.getElementById("image-upload").onchange = event => addEntryImages(entry, event.target.files);
+    }
+
+    function openMapPlaceModal(mapEntry, x, y) {
+      const root = document.getElementById("modal-root");
+      root.innerHTML = `<div class="modal-backdrop"><form class="modal" id="map-place-form"><div class="modal-head"><h2>Place on ${escapeHtml(mapEntry[0])}</h2><button class="close" type="button" aria-label="Close">×</button></div><p class="placement-help">Choose a place to mark at this location.</p><label class="field">Place<select name="place" required></select></label><div class="modal-actions"><button class="secondary" type="button" id="cancel-map-place">Cancel</button><button class="primary" type="submit">Set marker</button></div></form></div>`;
+      const form = root.querySelector("#map-place-form");
+      const select = form.elements.place;
+      state.places.forEach(place => {
+        const option = document.createElement("option");
+        option.value = place[9];
+        option.textContent = place[0];
+        if ((mapEntry[10] || []).some(marker => marker.placeId === place[9])) {
+          option.textContent += " (already marked)";
+        }
+        select.append(option);
+      });
+      root.querySelector(".close").addEventListener("click", closeModal);
+      root.querySelector("#cancel-map-place").addEventListener("click", closeModal);
+      root.querySelector(".modal-backdrop").addEventListener("click", event => {
+        if (event.target.classList.contains("modal-backdrop")) closeModal();
+      });
+      form.addEventListener("submit", event => {
+        event.preventDefault();
+        const place = state.places.find(item => item[9] === select.value);
+        if (!place || !state.maps.includes(mapEntry)) return;
+        const previousPlacements = mapEntry[10] || [];
+        mapEntry[10] = [
+          ...previousPlacements.filter(marker => marker.placeId !== place[9]),
+          { placeId: place[9], x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 }
+        ];
+        if (!persist()) {
+          mapEntry[10] = previousPlacements;
+          return;
+        }
+        closeModal();
+        if (activeView === "maps") renderCollection();
+        showToast(`${place[0]} placed on ${mapEntry[0]}.`);
+      });
+      select.focus();
     }
 
     // Render saved images with per-image removal controls.
@@ -626,8 +1004,15 @@ const defaults = {
       });
       root.querySelector("#confirm-delete").addEventListener("click", () => {
         const [removedEntry] = state[category].splice(entryIndex, 1);
+        const affectedMaps = category === "places"
+          ? state.maps.map(map => ({ map, placements: map[10] || [] }))
+          : [];
+        affectedMaps.forEach(({ map }) => {
+          map[10] = (map[10] || []).filter(marker => marker.placeId !== removedEntry[9]);
+        });
         if (!persist()) {
           state[category].splice(entryIndex, 0, removedEntry);
+          affectedMaps.forEach(({ map, placements }) => { map[10] = placements; });
           return;
         }
         updateCounts();
@@ -716,7 +1101,9 @@ const defaults = {
           [],
           form.get("group").trim(),
           null,
-          null
+          null,
+          createWorldId(),
+          []
         ]);
         if (!persist()) {
           state[category].shift();
@@ -907,6 +1294,7 @@ const defaults = {
         closeModal();
         closeWorldMenu();
         if (mapWrap.classList.contains("is-expanded")) setMapExpanded(false);
+        closeExpandedSavedMaps();
       }
     });
     // Set the initial counts from the loaded local world.

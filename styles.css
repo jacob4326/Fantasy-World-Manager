@@ -172,6 +172,31 @@
     /* Search results, entry cards, and their per-entry overflow menus. */
     .collection { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 13px; }
     .entry-card { position: relative; overflow: visible; padding: 16px; }
+    .map-entry-card { position: relative; overflow: visible; padding: 16px; }
+    .map-entry-heading { padding-right: 30px; }
+    .map-entry-heading h3 { font: 600 16px var(--serif); margin: 0; }
+    .map-entry-heading p { min-height: 34px; font-size: 11px; line-height: 1.6; color: var(--muted); margin: 8px 0 0; }
+    .saved-map-viewer { height: 230px; position: relative; isolation: isolate; overflow: hidden; border: 1px solid #344439; border-radius: 7px; background: #1c2924; touch-action: none; }
+    .saved-map-viewer:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+    .saved-map-viewer.is-expanded { position: fixed; inset: 0; z-index: 25; width: 100vw; height: 100vh; height: 100dvh; border: 0; border-radius: 0; }
+    body.saved-map-expanded { overflow: hidden; }
+    .saved-map-viewer.is-placing { cursor: crosshair; }
+    .saved-map-content { position: absolute; inset: 0; display: grid; place-items: center; transform: translate(var(--saved-map-pan-x, 0px), var(--saved-map-pan-y, 0px)) scale(var(--saved-map-zoom, 1)); transform-origin: center; cursor: grab; }
+    .saved-map-content img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+    .saved-map-content.is-dragging { cursor: grabbing; }
+    .saved-map-empty { margin: 0; padding: 20px; color: var(--muted); font-size: 11px; text-align: center; }
+    .saved-map-actions { position: absolute; z-index: 5; top: 10px; left: 10px; display: flex; gap: 7px; }
+    .saved-map-actions button { padding: 7px 9px; font-size: 10px; background: #141a15eF; box-shadow: 0 2px 8px #0007; }
+    .saved-map-actions button:disabled { cursor: not-allowed; opacity: .6; }
+    .saved-map-marker { position: absolute; z-index: 2; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; transform: translate(-50%, -50%); border: 2px solid #fff1ca; border-radius: 50%; background: #6e5830; color: #fff8e5; box-shadow: 0 2px 9px #0009, 0 0 0 4px #d3ad6940; font-size: 15px; cursor: pointer; }
+    .saved-map-marker:hover, .saved-map-marker:focus-visible { z-index: 3; transform: translate(-50%, -50%) scale(1.15); outline: 2px solid var(--gold); outline-offset: 2px; }
+    .saved-map-viewer.is-placing .saved-map-content { cursor: crosshair; }
+    .map-entry-card .map-zoom-controls { right: 10px; bottom: 10px; }
+    .map-entry-card .map-zoom-controls button { width: 31px; height: 31px; }
+    .map-entry-card .map-zoom-controls output { min-width: 43px; }
+    .map-card-upload { position: relative; display: inline-flex; align-items: center; margin-top: 12px; cursor: pointer; }
+    .map-card-upload input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
+    .map-card-upload:focus-within { outline: 1px solid var(--gold); outline-offset: 2px; }
     .entry-open { display: block; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; }
     .entry-open:focus-visible { outline: 1px solid var(--gold); outline-offset: 4px; border-radius: 4px; }
     .entry-card .entry-symbol { font-size: 20px; margin-bottom: 12px; }
