@@ -95,9 +95,24 @@
               <button class="secondary" id="edit-detail-entry">Edit entry</button>
             </div>
             <section class="detail-section">
-              <div class="detail-section-heading"><div><h2>Description</h2><p>Expand on this part of your world.</p></div><button class="secondary" id="save-long-description">Save description</button></div>
+              <div class="detail-section-heading"><div><h2>Description</h2><p>Expand on this part of your world.</p></div><div class="description-actions"><button class="secondary" id="edit-long-description" type="button">Edit description</button><button class="secondary" id="cancel-long-description" type="button" hidden>Cancel</button><button class="primary" id="save-long-description" type="button" hidden>Save description</button></div></div>
+              <div class="description-toolbar" id="description-toolbar" role="toolbar" aria-label="Description formatting" hidden>
+                <label class="sr-only" for="description-font-size">Font size</label>
+                <select id="description-font-size" aria-label="Font size">
+                  <option value="3">Normal</option>
+                  <option value="2">Small</option>
+                  <option value="4">Large</option>
+                  <option value="5">Extra large</option>
+                </select>
+                <button class="secondary format-button" type="button" data-format="bold" aria-pressed="false" aria-label="Bold" title="Bold"><strong>B</strong></button>
+                <button class="secondary format-button" type="button" data-format="italic" aria-pressed="false" aria-label="Italic" title="Italic"><em>I</em></button>
+                <button class="secondary format-button" type="button" data-format="underline" aria-pressed="false" aria-label="Underline" title="Underline"><u>U</u></button>
+                <label class="sr-only" for="description-link-target">Link to an object</label>
+                <select id="description-link-target" aria-label="Link to an object"><option value="">Choose an object...</option></select>
+                <button class="secondary" id="insert-object-link" type="button">Link selected text</button>
+              </div>
               <label class="sr-only" for="long-description">Detailed description</label>
-              <textarea class="long-description" id="long-description" maxlength="10000" placeholder="Add as much detail as you like..."></textarea>
+              <div class="long-description" id="long-description" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Detailed description" data-placeholder="Add as much detail as you like..."></div>
             </section>
             <section class="detail-section">
               <div class="detail-section-heading"><div><h2>Images</h2><p>Add visual references and inspiration.</p></div>

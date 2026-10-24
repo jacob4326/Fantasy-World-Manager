@@ -92,7 +92,8 @@ const defaults = {
                     && Number.isFinite(marker.x) && marker.x >= 0 && marker.x <= 100
                     && Number.isFinite(marker.y) && marker.y >= 0 && marker.y <= 100
                   ).map(marker => ({ placeId: marker.placeId, x: marker.x, y: marker.y }))
-                  : []
+                  : [],
+                entry[11] === true
               ])
               : []
           ])
@@ -794,6 +795,100 @@ const defaults = {
     }
 
     // Show a dedicated page for one place, character, faction, item, or event.
+    function sanitizeDescriptionHtml(html) {
+      const parsed = new DOMParser().parseFromString(html, "text/html");
+      const allowedTags = new Set(["A", "B", "BR", "DIV", "EM", "FONT", "I", "LI", "OL", "P", "SPAN", "STRONG", "U", "UL"]);
+      const fontSizes = { 1: "12px", 2: "14px", 3: "16px", 4: "20px", 5: "24px", 6: "28px", 7: "32px" };
+      const cleanNode = node => {
+        if (node.nodeType === Node.TEXT_NODE) return document.createTextNode(node.textContent);
+        if (!(node instanceof HTMLElement)) return document.createDocumentFragment();
+        if (["SCRIPT", "STYLE", "IFRAME", "OBJECT", "SVG", "MATH"].includes(node.tagName)) {
+          return document.createDocumentFragment();
+        }
+        const children = document.createDocumentFragment();
+        Array.from(node.childNodes).forEach(child => children.append(cleanNode(child)));
+        if (!allowedTags.has(node.tagName)) return children;
+        const tagName = node.tagName === "FONT" ? "SPAN" : node.tagName.toLowerCase();
+        const cleanElement = document.createElement(tagName);
+        if (node.tagName === "A") {
+          const linkedId = node.getAttribute("data-entry-id");
+          const linkedEntryExists = Object.keys(defaults).some(category =>
+            state[category].some(entry => entry[9] === linkedId)
+          );
+          if (!linkedEntryExists) return children;
+          cleanElement.dataset.entryId = linkedId;
+          cleanElement.setAttribute("role", "link");
+          cleanElement.tabIndex = 0;
+        }
+        if (node.tagName === "FONT" && fontSizes[node.getAttribute("size")]) {
+          cleanElement.style.fontSize = fontSizes[node.getAttribute("size")];
+        } else if (node.tagName === "SPAN" && /^\d{1,2}px$/.test(node.style.fontSize)) {
+          const size = Number.parseInt(node.style.fontSize, 10);
+          if ([12, 14, 16, 20, 24, 28, 32].includes(size)) cleanElement.style.fontSize = `${size}px`;
+        }
+        cleanElement.append(children);
+        return cleanElement;
+      };
+      const result = document.createElement("div");
+      Array.from(parsed.body.childNodes).forEach(child => result.append(cleanNode(child)));
+      return result.innerHTML;
+    }
+
+    function renderDescriptionLinks() {
+      const select = document.getElementById("description-link-target");
+      select.innerHTML = `<option value="">Choose an object...</option>`;
+      Object.keys(defaults).forEach(category => {
+        state[category].forEach(entry => {
+          const option = document.createElement("option");
+          option.value = entry[9];
+          option.textContent = `${meta[category][0]}: ${entry[0]}`;
+          select.append(option);
+        });
+      });
+    }
+
+    function insertDescriptionObjectLink() {
+      const editor = document.getElementById("long-description");
+      const targetId = document.getElementById("description-link-target").value;
+      const selection = window.getSelection();
+      const linkedEntryExists = Object.keys(defaults).some(category =>
+        state[category].some(entry => entry[9] === targetId)
+      );
+      if (!linkedEntryExists) {
+        showToast("Choose an object to link to.");
+        return;
+      }
+      if (!selection || selection.isCollapsed || !editor.contains(selection.anchorNode) || !editor.contains(selection.focusNode)) {
+        showToast("Select text in the description to turn it into an object link.");
+        return;
+      }
+      const link = document.createElement("a");
+      link.dataset.entryId = targetId;
+      link.setAttribute("role", "link");
+      link.tabIndex = 0;
+      link.append(selection.getRangeAt(0).extractContents());
+      const range = selection.getRangeAt(0);
+      range.insertNode(link);
+      range.setStartAfter(link);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      editor.focus();
+    }
+
+    function openLinkedDescriptionObject(link) {
+      const linkedId = link.dataset.entryId;
+      for (const category of Object.keys(defaults)) {
+        const entryIndex = state[category].findIndex(entry => entry[9] === linkedId);
+        if (entryIndex < 0) continue;
+        openView(category);
+        openEntryDetails(category, entryIndex);
+        return true;
+      }
+      showToast("This linked object no longer exists.");
+      return false;
+    }
+
     function openEntryDetails(category, entryIndex) {
       const entry = state[category][entryIndex];
       if (!entry) return;
@@ -805,18 +900,80 @@ const defaults = {
       document.getElementById("detail-category").textContent = category === "timeline" ? "TIMELINE EVENT" : meta[category][4].toUpperCase();
       document.getElementById("detail-title").textContent = entry[0];
       document.getElementById("detail-meta").textContent = entry[3];
-      document.getElementById("long-description").value = entry[4] || entry[2];
+      const descriptionEditor = document.getElementById("long-description");
+      descriptionSelectionRange = null;
+      const savedDescription = entry[4] || entry[2];
+      descriptionEditor.innerHTML = entry[11]
+        ? sanitizeDescriptionHtml(savedDescription)
+        : "";
+      if (!entry[11]) descriptionEditor.textContent = savedDescription;
+      renderDescriptionLinks();
       renderEntryImages(entry);
+      const editDescriptionButton = document.getElementById("edit-long-description");
+      const cancelDescriptionButton = document.getElementById("cancel-long-description");
+      const saveDescriptionButton = document.getElementById("save-long-description");
+      const descriptionToolbar = document.getElementById("description-toolbar");
+      const setDescriptionEditing = isEditing => {
+        descriptionEditor.contentEditable = String(isEditing);
+        descriptionToolbar.hidden = !isEditing;
+        editDescriptionButton.hidden = isEditing;
+        cancelDescriptionButton.hidden = !isEditing;
+        saveDescriptionButton.hidden = !isEditing;
+        if (!isEditing) {
+          document.querySelectorAll("[data-format]").forEach(button => {
+            button.classList.remove("active");
+            button.setAttribute("aria-pressed", "false");
+          });
+        } else {
+          updateDescriptionFormatButtons();
+        }
+      };
+      setDescriptionEditing(false);
+      editDescriptionButton.onclick = () => {
+        setDescriptionEditing(true);
+        descriptionEditor.focus();
+      };
+      cancelDescriptionButton.onclick = () => {
+        descriptionEditor.innerHTML = entry[11]
+          ? sanitizeDescriptionHtml(savedDescription)
+          : "";
+        if (!entry[11]) descriptionEditor.textContent = savedDescription;
+        descriptionSelectionRange = null;
+        setDescriptionEditing(false);
+      };
       document.getElementById("edit-detail-entry").onclick = () => openEditEntry(category, entryIndex);
-      document.getElementById("save-long-description").onclick = () => {
+      saveDescriptionButton.onclick = () => {
         const previousDescription = entry[4];
-        entry[4] = document.getElementById("long-description").value.trim();
-        if (!persist()) {
-          entry[4] = previousDescription;
-          document.getElementById("long-description").value = previousDescription || entry[2];
+        const previousRichDescription = entry[11];
+        const nextDescription = sanitizeDescriptionHtml(descriptionEditor.innerHTML);
+        const plainTextLength = new DOMParser().parseFromString(nextDescription, "text/html").body.textContent.length;
+        if (plainTextLength > 10000) {
+          showToast("Descriptions can contain up to 10,000 characters.");
           return;
         }
+        entry[4] = nextDescription;
+        entry[11] = true;
+        if (!persist()) {
+          entry[4] = previousDescription;
+          entry[11] = previousRichDescription;
+          return;
+        }
+        descriptionEditor.innerHTML = nextDescription;
+        setDescriptionEditing(false);
+        descriptionSelectionRange = null;
         showToast("Description saved.");
+      };
+      document.getElementById("insert-object-link").onclick = insertDescriptionObjectLink;
+      descriptionEditor.onclick = event => {
+        const link = event.target.closest("a[data-entry-id]");
+        if (!link) return;
+        event.preventDefault();
+        openLinkedDescriptionObject(link);
+      };
+      descriptionEditor.onkeydown = event => {
+        if (!["Enter", " "].includes(event.key) || !event.target.closest("a[data-entry-id]")) return;
+        event.preventDefault();
+        openLinkedDescriptionObject(event.target.closest("a[data-entry-id]"));
       };
       document.getElementById("image-upload").onchange = event => addEntryImages(entry, event.target.files);
     }
@@ -1282,6 +1439,97 @@ const defaults = {
     document.getElementById("search-input").addEventListener("input", renderCollection);
     document.getElementById("group-filter").addEventListener("change", renderCollection);
     document.getElementById("back-to-collection").addEventListener("click", () => openView(activeView));
+    const descriptionEditor = document.getElementById("long-description");
+    let descriptionSelectionRange;
+    const isNodeFormatted = (node, format) => {
+      const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+      if (!element) return false;
+      const style = window.getComputedStyle(element);
+      if (format === "bold") return Number.parseInt(style.fontWeight, 10) >= 600 || style.fontWeight === "bold";
+      if (format === "italic") return style.fontStyle === "italic" || style.fontStyle === "oblique";
+      return style.textDecorationLine.split(" ").includes("underline");
+    };
+    const updateDescriptionFormatButtons = () => {
+      const range = descriptionSelectionRange;
+      document.querySelectorAll("[data-format]").forEach(button => {
+        let selectedTextNodes = [];
+        let isActive = false;
+        if (descriptionEditor.isContentEditable && range && descriptionEditor.contains(range.commonAncestorContainer)) {
+          if (range.collapsed) {
+            isActive = document.queryCommandState(button.dataset.format);
+          } else {
+            const walker = document.createTreeWalker(descriptionEditor, NodeFilter.SHOW_TEXT);
+            let textNode;
+            while ((textNode = walker.nextNode())) {
+              if (textNode.textContent.trim() && range.intersectsNode(textNode)) selectedTextNodes.push(textNode);
+            }
+            isActive = selectedTextNodes.length > 0
+              && selectedTextNodes.every(node => isNodeFormatted(node, button.dataset.format));
+          }
+        }
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-pressed", String(isActive));
+      });
+    };
+    const rememberDescriptionSelection = () => {
+      const selection = window.getSelection();
+      if (
+        descriptionEditor.isContentEditable
+        && selection?.rangeCount
+        && descriptionEditor.contains(selection.anchorNode)
+        && descriptionEditor.contains(selection.focusNode)
+      ) {
+        descriptionSelectionRange = selection.getRangeAt(0).cloneRange();
+      }
+      updateDescriptionFormatButtons();
+    };
+    const restoreDescriptionSelection = () => {
+      const selection = window.getSelection();
+      const selectionInsideEditor = selection?.rangeCount
+        && descriptionEditor.contains(selection.anchorNode)
+        && descriptionEditor.contains(selection.focusNode);
+      descriptionEditor.focus();
+      if (selectionInsideEditor || !descriptionSelectionRange) return;
+      const restoredSelection = window.getSelection();
+      if (!restoredSelection) return;
+      restoredSelection.removeAllRanges();
+      restoredSelection.addRange(descriptionSelectionRange);
+    };
+    descriptionEditor.addEventListener("keyup", rememberDescriptionSelection);
+    descriptionEditor.addEventListener("mouseup", rememberDescriptionSelection);
+    descriptionEditor.addEventListener("input", rememberDescriptionSelection);
+    document.addEventListener("selectionchange", rememberDescriptionSelection);
+    document.querySelectorAll("[data-format]").forEach(button => {
+      button.addEventListener("mousedown", event => {
+        event.preventDefault();
+        rememberDescriptionSelection();
+      });
+      button.addEventListener("click", () => {
+        restoreDescriptionSelection();
+        document.execCommand(button.dataset.format, false);
+        rememberDescriptionSelection();
+        updateDescriptionFormatButtons();
+      });
+    });
+    const fontSizeSelect = document.getElementById("description-font-size");
+    fontSizeSelect.addEventListener("mousedown", rememberDescriptionSelection);
+    fontSizeSelect.addEventListener("keydown", rememberDescriptionSelection);
+    fontSizeSelect.addEventListener("change", () => {
+      restoreDescriptionSelection();
+      document.execCommand("fontSize", false, fontSizeSelect.value);
+      rememberDescriptionSelection();
+    });
+    document.getElementById("insert-object-link").addEventListener("mousedown", event => event.preventDefault());
+    descriptionEditor.addEventListener("paste", event => {
+      event.preventDefault();
+      const text = event.clipboardData.getData("text/plain");
+      document.execCommand("insertText", false, text);
+    });
+    descriptionEditor.addEventListener("drop", event => {
+      event.preventDefault();
+      const text = event.dataTransfer.getData("text/plain");
+      document.execCommand("insertText", false, text);
+    });
     document.getElementById("focus-search").addEventListener("click", () => {
       if (activeView === "overview") openView("places");
       document.getElementById("search-input").focus();
